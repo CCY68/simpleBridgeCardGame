@@ -1,0 +1,78 @@
+# ================================
+# CardArena .gitignore
+# ================================
+
+# ----------------
+# Rust
+# ----------------
+/server/target/
+**/*.rs.bk
+*.pdb
+
+# ----------------
+# Python
+# ----------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# ----------------
+# IDE / Editor
+# ----------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ----------------
+# OS
+# ----------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ----------------
+# Logs
+# ----------------
+*.log
+logs/
+
+# ----------------
+# Environment / Secrets
+# ----------------
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+
+# ----------------
+# Temporary files
+# ----------------
+*.tmp
+*.temp
+*.bak
