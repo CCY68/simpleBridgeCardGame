@@ -137,3 +137,14 @@
 | EPIC 5 - Clients (Core) | 4 | 4 | 0 | 0 |
 | EPIC 7 - GUI Client | 4 | 4 | 0 | 0 |
 | **Total** | **9** | **9** | **0** | **0** |
+
+---
+
+## Changelog
+
+### 2026-01-14 (Code Review Fix by @Claude)
+- **AI CLI 修正** (`clients/ai_cli/app.py`):
+  - 新增 UDP Heartbeat 支援 (原本缺失)
+  - 新增 PLAY_REJECT 處理邏輯
+  - 新增 ROOM_WAIT, ROOM_START, PLAY_BROADCAST 訊息處理
+  - 修正 TRICK_RESULT 分數更新邏輯
