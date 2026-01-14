@@ -10,7 +10,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 from clients.common.connection import NetworkClient
 from clients.common.heartbeat import HeartbeatClient
 from clients.ai_cli.fallback import FallbackStrategy
-from clients.ai_cli.gemini_bridge import GeminiBridge
+
+# Gemini 為可選依賴
+try:
+    from clients.ai_cli.gemini_bridge import GeminiBridge
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GeminiBridge = None
+    GEMINI_AVAILABLE = False
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
@@ -26,7 +33,13 @@ class AIClient:
         self.client = NetworkClient()
         self.hb_client = None  # UDP Heartbeat
         self.fallback = FallbackStrategy()
-        self.gemini = GeminiBridge() if use_gemini else None
+
+        # Gemini 初始化 (如果可用且啟用)
+        self.gemini = None
+        if use_gemini and GEMINI_AVAILABLE:
+            self.gemini = GeminiBridge()
+        elif use_gemini and not GEMINI_AVAILABLE:
+            logger.warning("Gemini not available (google-generativeai not installed). Using fallback only.")
 
         # Game State
         self.hand = []
