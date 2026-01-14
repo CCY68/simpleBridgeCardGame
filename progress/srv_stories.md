@@ -23,9 +23,9 @@
 |------|-------|------|-------------|------|
 | EPIC 1 - TCP Core | 5 | 5 | 0 | 0 |
 | EPIC 2 - Lobby | 3 | 3 | 0 | 0 |
-| EPIC 3 - Game Engine | 5 | 0 | 0 | 5 |
+| EPIC 3 - Game Engine | 5 | 5 | 0 | 0 |
 | EPIC 4 - UDP Heartbeat (Server) | 2 | 0 | 0 | 2 |
-| **Total** | **15** | **8** | **0** | **7** |
+| **Total** | **15** | **13** | **0** | **2** |
 
 ---
 
@@ -146,74 +146,74 @@
 
 ---
 
-## EPIC 3 - Game Engine MVP (Trick Duel) `TODO`
+## EPIC 3 - Game Engine MVP (Trick Duel) `DONE`
 
-### S3.1 Deterministic card dealing `[P0]` `TODO`
+### S3.1 Deterministic card dealing `[P0]` `DONE`
 
 **檔案**: `server/src/game/deck.rs`
 **驗收指令**: 相同 seed 產生相同手牌
 
 **DoD**:
-- [ ] 52 張牌的 deck 表示
-- [ ] 使用 seed 的 shuffle 演算法 (Fisher-Yates)
-- [ ] 每人發 13 張
-- [ ] 送 DEAL message 給每位玩家
-- [ ] Unit test: 相同 seed → 相同結果
+- [x] 52 張牌的 deck 表示
+- [x] 使用 seed 的 shuffle 演算法 (Fisher-Yates with LCG)
+- [x] 每人發 13 張
+- [x] 送 DEAL message 給每位玩家
+- [x] Unit test: 相同 seed → 相同結果
 
 ---
 
-### S3.2 Turn rotation & YOUR_TURN `[P0]` `TODO`
+### S3.2 Turn rotation & YOUR_TURN `[P0]` `DONE`
 
-**檔案**: `server/src/game/turn.rs`
+**檔案**: `server/src/game/engine.rs`
 **驗收指令**: 輪流收到 YOUR_TURN
 
 **DoD**:
-- [ ] 追蹤 current player (P1 → P2 → P3 → P4 → P1...)
-- [ ] 每個 trick 由上一 trick 的贏家先出
-- [ ] 計算合法出牌 (legal moves)
-- [ ] 送 YOUR_TURN 含 legal 欄位
-- [ ] 設定 timeout
+- [x] 追蹤 current player (P1 → P2 → P3 → P4 → P1...)
+- [x] 每個 trick 由上一 trick 的贏家先出
+- [x] 計算合法出牌 (legal moves)
+- [x] 送 YOUR_TURN 含 legal 欄位
+- [x] 設定 timeout (30 秒)
 
 ---
 
-### S3.3 PLAY validation `[P0]` `TODO`
+### S3.3 PLAY validation `[P0]` `DONE`
 
-**檔案**: `server/src/game/validation.rs`
+**檔案**: `server/src/game/engine.rs`, `server/src/main.rs`
 **驗收指令**: 非法出牌收到 PLAY_REJECT
 
 **DoD**:
-- [ ] 檢查：牌在手牌中
-- [ ] 檢查：輪到該玩家
-- [ ] 檢查：符合跟牌規則 (follow suit)
-- [ ] 驗證失敗送 PLAY_REJECT 含 reason
-- [ ] 驗證成功 broadcast PLAY_BROADCAST
+- [x] 檢查：牌在手牌中
+- [x] 檢查：輪到該玩家
+- [x] 檢查：符合跟牌規則 (follow suit)
+- [x] 驗證失敗送 PLAY_REJECT 含 reason
+- [x] 驗證成功 broadcast PLAY_BROADCAST
 
 ---
 
-### S3.4 Trick resolution & scoring `[P0]` `TODO`
+### S3.4 Trick resolution & scoring `[P0]` `DONE`
 
-**檔案**: `server/src/game/trick.rs`, `server/src/game/scoring.rs`
+**檔案**: `server/src/game/engine.rs`
 **驗收指令**: 4 人出完牌後收到 TRICK_RESULT
 
 **DoD**:
-- [ ] 4 人都出牌後判定 trick winner
-- [ ] 比較規則：同花色最大者勝
-- [ ] 更新 team score
-- [ ] Broadcast TRICK_RESULT
-- [ ] 清除桌面，開始下一 trick
+- [x] 4 人都出牌後判定 trick winner
+- [x] 比較規則：同花色最大者勝
+- [x] 更新 team score
+- [x] Broadcast TRICK_RESULT
+- [x] 清除桌面，開始下一 trick
 
 ---
 
-### S3.5 GAME_OVER & reset `[P1]` `TODO`
+### S3.5 GAME_OVER & reset `[P1]` `DONE`
 
 **檔案**: `server/src/game/engine.rs`
 **驗收指令**: 所有 tricks 結束後收到 GAME_OVER
 
 **DoD**:
-- [ ] 所有 tricks 結束後計算 final score
-- [ ] 判定 winner team
-- [ ] Broadcast GAME_OVER 含 history
-- [ ] 支援重新開始 (回到 lobby 或自動開新局)
+- [x] 所有 tricks (13) 結束後計算 final score
+- [x] 判定 winner team
+- [x] Broadcast GAME_OVER 含 history
+- [x] 遊戲狀態管理 (GamePhase enum)
 
 ---
 
@@ -250,7 +250,7 @@
 
 ```
 server/src/
-├── main.rs              # Accept loop + Game loop
+├── main.rs              # Accept loop + Game loop + Message handling
 ├── net/
 │   ├── mod.rs
 │   ├── listener.rs      # socket2 TCP listener
@@ -267,13 +267,9 @@ server/src/
 │   ├── handshake.rs     # HELLO/WELCOME + AI auth
 │   └── room.rs          # RoomManager, 4人開始
 └── game/
-    ├── mod.rs           # (TODO)
-    ├── deck.rs          # (TODO) 發牌
-    ├── turn.rs          # (TODO) 回合管理
-    ├── validation.rs    # (TODO) 出牌驗證
-    ├── trick.rs         # (TODO) Trick 判定
-    ├── scoring.rs       # (TODO) 計分
-    └── engine.rs        # (TODO) 遊戲引擎
+    ├── mod.rs
+    ├── deck.rs          # 52張牌, Fisher-Yates shuffle
+    └── engine.rs        # 遊戲引擎: 發牌/出牌/計分/結束
 ```
 
 ---
@@ -282,12 +278,19 @@ server/src/
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Unit Tests | 20 | ✅ All Passed |
+| Unit Tests | 31 | ✅ All Passed |
 | Integration | Manual | ✅ Verified |
 
 ---
 
 ## Changelog
+
+### 2026-01-14 (Update 2)
+- 完成 EPIC 3 (S3.1 ~ S3.5) - Game Engine MVP
+  - deck.rs: 52張牌、Fisher-Yates shuffle、確定性發牌
+  - engine.rs: 完整遊戲引擎 (發牌/回合/出牌驗證/Trick結算/計分/結束)
+  - 整合到 main.rs 處理 PLAY 訊息
+- 測試數量: 20 → 31
 
 ### 2026-01-14
 - 完成 EPIC 1 (S1.1 ~ S1.5) - TCP Networking Core

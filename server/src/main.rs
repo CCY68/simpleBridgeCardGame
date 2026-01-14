@@ -3,12 +3,13 @@ mod lobby;
 mod net;
 mod protocol;
 
+use game::{GameEngine, GamePhase, PlayError, PlayResult, TrickResolution};
 use lobby::{HandshakeResult, RoomManager, RoomState, process_hello};
 use log::{error, info, warn};
 use net::{
     ClientSender, ConnectionId, GameEvent, create_event_channel, next_connection_id, spawn_handler,
 };
-use protocol::{ClientMessage, ErrorCode, ServerMessage};
+use protocol::{ClientMessage, ErrorCode, RejectReason, RoomId, ServerMessage};
 use std::collections::HashMap;
 use std::env;
 use std::net::SocketAddr;
@@ -24,22 +25,40 @@ struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            // 開發模式：不需要 AI token
-            // 正式環境可設定環境變數 AI_AUTH_TOKEN
             ai_auth_token: env::var("AI_AUTH_TOKEN").ok(),
         }
     }
 }
 
+/// 伺服器狀態
+struct ServerState {
+    /// 所有連線的 sender
+    clients: HashMap<ConnectionId, ClientSender>,
+    /// 房間管理器
+    room_manager: RoomManager,
+    /// 遊戲引擎 (room_id -> engine)
+    games: HashMap<RoomId, GameEngine>,
+    /// 連線到房間的對應 (conn_id -> room_id)
+    conn_to_room: HashMap<ConnectionId, RoomId>,
+}
+
+impl ServerState {
+    fn new() -> Self {
+        Self {
+            clients: HashMap::new(),
+            room_manager: RoomManager::new(),
+            games: HashMap::new(),
+            conn_to_room: HashMap::new(),
+        }
+    }
+}
+
 fn main() {
-    // 初始化 logger
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    // 解析命令列參數
     let port = parse_port_from_args().unwrap_or(DEFAULT_PORT);
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().expect("Invalid address");
 
-    // 建立 TCP listener
     let listener = match net::create_tcp_listener(addr) {
         Ok(l) => l,
         Err(e) => {
@@ -51,23 +70,17 @@ fn main() {
     let local_addr = listener.local_addr().expect("Failed to get local address");
     info!("[SERVER] Listening on {}", local_addr);
 
-    // 建立 event channel
     let (event_tx, event_rx) = create_event_channel();
 
-    // 啟動 accept loop thread
     let accept_tx = event_tx.clone();
     thread::spawn(move || {
         accept_loop(listener, accept_tx);
     });
 
-    // 載入設定
     let config = ServerConfig::default();
-
-    // Main game loop
     game_loop(event_rx, config);
 }
 
-/// Accept loop - 接受新連線並建立 handler
 fn accept_loop(listener: std::net::TcpListener, event_tx: net::EventSender) {
     for stream in listener.incoming() {
         match stream {
@@ -80,12 +93,8 @@ fn accept_loop(listener: std::net::TcpListener, event_tx: net::EventSender) {
 
                 info!("[ACCEPT] New connection #{} from {}", conn_id, peer_addr);
 
-                // 啟動 connection handler
                 if let Err(e) = spawn_handler(conn_id, stream, event_tx.clone()) {
-                    warn!(
-                        "[ACCEPT] Failed to spawn handler for #{}: {}",
-                        conn_id, e
-                    );
+                    warn!("[ACCEPT] Failed to spawn handler for #{}: {}", conn_id, e);
                 }
             }
             Err(e) => {
@@ -95,12 +104,8 @@ fn accept_loop(listener: std::net::TcpListener, event_tx: net::EventSender) {
     }
 }
 
-/// Game loop - 處理所有 game events
 fn game_loop(event_rx: net::EventReceiver, config: ServerConfig) {
-    // 儲存所有連線的 sender
-    let mut clients: HashMap<ConnectionId, ClientSender> = HashMap::new();
-    // 房間管理器
-    let mut room_manager = RoomManager::new();
+    let mut state = ServerState::new();
 
     info!("[GAME] Game loop started");
 
@@ -110,15 +115,16 @@ fn game_loop(event_rx: net::EventReceiver, config: ServerConfig) {
                 info!(
                     "[GAME] Client #{} connected (total: {})",
                     conn_id,
-                    clients.len() + 1
+                    state.clients.len() + 1
                 );
-                clients.insert(conn_id, sender);
+                state.clients.insert(conn_id, sender);
             }
 
             GameEvent::Disconnected { conn_id } => {
-                clients.remove(&conn_id);
-                // 從房間移除
-                if let Some(player) = room_manager.handle_disconnect(conn_id) {
+                state.clients.remove(&conn_id);
+                state.conn_to_room.remove(&conn_id);
+
+                if let Some(player) = state.room_manager.handle_disconnect(conn_id) {
                     info!(
                         "[GAME] Player '{}' ({}) disconnected from room",
                         player.nickname, player.player_id
@@ -127,12 +133,12 @@ fn game_loop(event_rx: net::EventReceiver, config: ServerConfig) {
                 info!(
                     "[GAME] Client #{} disconnected (total: {})",
                     conn_id,
-                    clients.len()
+                    state.clients.len()
                 );
             }
 
             GameEvent::Message { conn_id, message } => {
-                handle_game_message(conn_id, &message, &mut clients, &mut room_manager, &config);
+                handle_message(conn_id, &message, &mut state, &config);
             }
         }
     }
@@ -140,18 +146,16 @@ fn game_loop(event_rx: net::EventReceiver, config: ServerConfig) {
     info!("[GAME] Game loop ended");
 }
 
-/// 處理遊戲訊息
-fn handle_game_message(
+fn handle_message(
     conn_id: ConnectionId,
     msg: &ClientMessage,
-    clients: &mut HashMap<ConnectionId, ClientSender>,
-    room_manager: &mut RoomManager,
+    state: &mut ServerState,
     config: &ServerConfig,
 ) {
     match msg {
         ClientMessage::Ping => {
             info!("[GAME] #{} PING -> PONG", conn_id);
-            send_to(clients, conn_id, &ServerMessage::Pong);
+            send_to(&state.clients, conn_id, &ServerMessage::Pong);
         }
 
         ClientMessage::Hello {
@@ -160,129 +164,311 @@ fn handle_game_message(
             proto,
             auth,
         } => {
-            info!("[GAME] #{} HELLO from {:?} '{}'", conn_id, role, nickname);
-
-            // 取得或建立等待中的房間
-            let room = room_manager.get_or_create_waiting_room();
-
-            // 檢查房間是否已滿
-            if room.is_full() {
-                send_to(
-                    clients,
-                    conn_id,
-                    &ServerMessage::Error {
-                        code: ErrorCode::RoomFull,
-                        message: "Room is full".to_string(),
-                    },
-                );
-                return;
-            }
-
-            // 處理 handshake
-            let result = process_hello(
-                role,
-                nickname,
-                *proto,
-                auth,
-                room.get_nicknames(),
-                room.next_slot(),
-                &room.id,
-                config.ai_auth_token.as_deref(),
-            );
-
-            match result {
-                HandshakeResult::Success(welcome_msg) => {
-                    // 從 welcome_msg 取得 player_id 和 nickname
-                    if let ServerMessage::Welcome {
-                        player_id,
-                        nickname: final_nickname,
-                        room: room_id,
-                    } = &welcome_msg
-                    {
-                        // 複製需要的資料，避免借用衝突
-                        let room_id_clone = room_id.clone();
-                        let player_count;
-                        let wait_msg;
-                        let conn_ids;
-                        let can_start;
-                        let seed;
-
-                        // 加入房間 (在這個作用域內完成所有對 room 的操作)
-                        {
-                            room.add_player(conn_id, player_id, final_nickname, *role);
-                            player_count = room.players.len();
-                            wait_msg = room.room_wait_message();
-                            conn_ids = room.conn_ids();
-                            can_start = room.can_start();
-                            seed = room.seed;
-                        }
-
-                        // 關聯連線到房間
-                        room_manager.associate_conn(conn_id, &room_id_clone);
-
-                        // 發送 WELCOME 給新玩家
-                        send_to(clients, conn_id, &welcome_msg);
-
-                        info!(
-                            "[LOBBY] Player '{}' ({}) joined room {} ({}/4 players)",
-                            final_nickname, player_id, room_id, player_count
-                        );
-
-                        // 廣播 ROOM_WAIT 給所有房間內的玩家
-                        for &cid in &conn_ids {
-                            send_to(clients, cid, &wait_msg);
-                        }
-
-                        // 檢查是否可以開始遊戲
-                        if can_start {
-                            // 重新取得 room 的 mutable 引用
-                            if let Some(room) = room_manager.get_room_mut(&room_id_clone) {
-                                room.state = RoomState::Playing;
-                                room.assign_teams();
-
-                                let start_msg = room.room_start_message();
-                                let conn_ids = room.conn_ids();
-
-                                info!(
-                                    "[LOBBY] Room {} starting game with seed {}",
-                                    room_id_clone, seed
-                                );
-
-                                for &cid in &conn_ids {
-                                    send_to(clients, cid, &start_msg);
-                                }
-
-                                // TODO: S3.1 會實作發牌邏輯
-                            }
-                        }
-                    }
-                }
-                HandshakeResult::Error(error_msg) => {
-                    warn!("[LOBBY] Handshake failed for #{}: {:?}", conn_id, error_msg);
-                    send_to(clients, conn_id, &error_msg);
-                }
-            }
+            handle_hello(conn_id, role, nickname, *proto, auth, state, config);
         }
 
         ClientMessage::Play { card } => {
-            info!(
-                "[GAME] #{} PLAY {} (rejected - game not started)",
-                conn_id, card
-            );
-            // TODO: S3.3 會實作完整的出牌驗證
+            handle_play(conn_id, card, state);
+        }
+    }
+}
+
+fn handle_hello(
+    conn_id: ConnectionId,
+    role: &protocol::Role,
+    nickname: &str,
+    proto: u32,
+    auth: &Option<String>,
+    state: &mut ServerState,
+    config: &ServerConfig,
+) {
+    info!("[GAME] #{} HELLO from {:?} '{}'", conn_id, role, nickname);
+
+    let room = state.room_manager.get_or_create_waiting_room();
+
+    if room.is_full() {
+        send_to(
+            &state.clients,
+            conn_id,
+            &ServerMessage::Error {
+                code: ErrorCode::RoomFull,
+                message: "Room is full".to_string(),
+            },
+        );
+        return;
+    }
+
+    let result = process_hello(
+        role,
+        nickname,
+        proto,
+        auth,
+        room.get_nicknames(),
+        room.next_slot(),
+        &room.id,
+        config.ai_auth_token.as_deref(),
+    );
+
+    match result {
+        HandshakeResult::Success(welcome_msg) => {
+            if let ServerMessage::Welcome {
+                player_id,
+                nickname: final_nickname,
+                room: room_id,
+            } = &welcome_msg
+            {
+                let room_id_clone = room_id.clone();
+                let player_count;
+                let wait_msg;
+                let conn_ids;
+                let can_start;
+                let seed;
+                let players_data;
+
+                {
+                    room.add_player(conn_id, player_id, final_nickname, *role);
+                    player_count = room.players.len();
+                    wait_msg = room.room_wait_message();
+                    conn_ids = room.conn_ids();
+                    can_start = room.can_start();
+                    seed = room.seed;
+
+                    // 收集玩家資料用於建立 GameEngine
+                    players_data = room
+                        .players
+                        .iter()
+                        .map(|p| (p.conn_id, p.player_id.clone(), p.team.unwrap_or(protocol::Team::Human)))
+                        .collect::<Vec<_>>();
+                }
+
+                state.room_manager.associate_conn(conn_id, &room_id_clone);
+                state.conn_to_room.insert(conn_id, room_id_clone.clone());
+
+                send_to(&state.clients, conn_id, &welcome_msg);
+
+                info!(
+                    "[LOBBY] Player '{}' ({}) joined room {} ({}/4 players)",
+                    final_nickname, player_id, room_id, player_count
+                );
+
+                for &cid in &conn_ids {
+                    send_to(&state.clients, cid, &wait_msg);
+                }
+
+                if can_start {
+                    if let Some(room) = state.room_manager.get_room_mut(&room_id_clone) {
+                        room.state = RoomState::Playing;
+                        room.assign_teams();
+
+                        let start_msg = room.room_start_message();
+                        let conn_ids = room.conn_ids();
+
+                        // 收集更新後的玩家資料 (含 team)
+                        let players_with_teams: Vec<_> = room
+                            .players
+                            .iter()
+                            .map(|p| (p.conn_id, p.player_id.clone(), p.team.unwrap_or(protocol::Team::Human)))
+                            .collect();
+
+                        info!("[LOBBY] Room {} starting game with seed {}", room_id_clone, seed);
+
+                        for &cid in &conn_ids {
+                            send_to(&state.clients, cid, &start_msg);
+                        }
+
+                        // 建立 GameEngine 並發牌
+                        start_game(&room_id_clone, seed, players_with_teams, state);
+                    }
+                }
+            }
+        }
+        HandshakeResult::Error(error_msg) => {
+            warn!("[LOBBY] Handshake failed for #{}: {:?}", conn_id, error_msg);
+            send_to(&state.clients, conn_id, &error_msg);
+        }
+    }
+}
+
+fn start_game(
+    room_id: &str,
+    seed: u64,
+    players: Vec<(ConnectionId, String, protocol::Team)>,
+    state: &mut ServerState,
+) {
+    info!("[ENGINE] Creating game engine for room {}", room_id);
+
+    let mut engine = GameEngine::new(seed, players);
+
+    // 發牌
+    let deal_messages = engine.deal();
+    for (conn_id, msg) in deal_messages {
+        send_to(&state.clients, conn_id, &msg);
+        info!("[ENGINE] Sent DEAL to connection #{}", conn_id);
+    }
+
+    // 發送 YOUR_TURN 給第一位玩家
+    if let Some(current_idx) = engine.current_player_idx() {
+        let your_turn_msg = engine.your_turn_message(current_idx);
+        let current_conn_id = engine.players[current_idx].conn_id;
+        send_to(&state.clients, current_conn_id, &your_turn_msg);
+        info!(
+            "[ENGINE] Sent YOUR_TURN to {} (trick {})",
+            engine.players[current_idx].player_id, engine.current_trick
+        );
+    }
+
+    state.games.insert(room_id.to_string(), engine);
+}
+
+fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
+    // 找到該連線所屬的遊戲
+    let room_id = match state.conn_to_room.get(&conn_id) {
+        Some(id) => id.clone(),
+        None => {
+            warn!("[ENGINE] #{} tried to play but not in any room", conn_id);
             send_to(
-                clients,
+                &state.clients,
+                conn_id,
+                &ServerMessage::Error {
+                    code: ErrorCode::ProtocolError,
+                    message: "Not in a game".to_string(),
+                },
+            );
+            return;
+        }
+    };
+
+    let engine = match state.games.get_mut(&room_id) {
+        Some(e) => e,
+        None => {
+            warn!("[ENGINE] #{} tried to play but game not found", conn_id);
+            send_to(
+                &state.clients,
                 conn_id,
                 &ServerMessage::Error {
                     code: ErrorCode::NotYourTurn,
                     message: "Game not started".to_string(),
                 },
             );
+            return;
+        }
+    };
+
+    // 驗證出牌
+    let (player_idx, card_data) = match engine.validate_play(conn_id, card) {
+        Ok(result) => result,
+        Err(e) => {
+            let (code, reason) = match e {
+                PlayError::NotYourTurn => (ErrorCode::NotYourTurn, RejectReason::NotYourTurn),
+                PlayError::NotInHand => (ErrorCode::InvalidMove, RejectReason::NotInHand),
+                PlayError::NotLegal => (ErrorCode::InvalidMove, RejectReason::NotLegal),
+                PlayError::InvalidCard => (ErrorCode::InvalidMove, RejectReason::NotInHand),
+                PlayError::NotInGame => (ErrorCode::ProtocolError, RejectReason::NotYourTurn),
+            };
+
+            info!("[ENGINE] #{} PLAY {} rejected: {:?}", conn_id, card, e);
+            send_to(
+                &state.clients,
+                conn_id,
+                &ServerMessage::PlayReject {
+                    card: card.to_string(),
+                    reason,
+                },
+            );
+            return;
+        }
+    };
+
+    info!(
+        "[ENGINE] {} plays {} (trick {})",
+        engine.players[player_idx].player_id, card, engine.current_trick
+    );
+
+    // 執行出牌
+    let play_result = engine.play_card(player_idx, card_data);
+
+    match play_result {
+        PlayResult::Continue(broadcast_msg, next_idx) => {
+            // 廣播出牌
+            for &cid in &engine.all_conn_ids() {
+                send_to(&state.clients, cid, &broadcast_msg);
+            }
+
+            // 發送 YOUR_TURN 給下一位玩家
+            let your_turn_msg = engine.your_turn_message(next_idx);
+            let next_conn_id = engine.players[next_idx].conn_id;
+            send_to(&state.clients, next_conn_id, &your_turn_msg);
+            info!(
+                "[ENGINE] YOUR_TURN -> {} (trick {})",
+                engine.players[next_idx].player_id, engine.current_trick
+            );
+        }
+
+        PlayResult::TrickComplete(broadcast_msg) => {
+            // 廣播出牌
+            for &cid in &engine.all_conn_ids() {
+                send_to(&state.clients, cid, &broadcast_msg);
+            }
+
+            // 結算 trick
+            let resolution = engine.resolve_trick();
+
+            match resolution {
+                TrickResolution::NextTrick(result_msg, next_idx) => {
+                    // 廣播 TRICK_RESULT
+                    for &cid in &engine.all_conn_ids() {
+                        send_to(&state.clients, cid, &result_msg);
+                    }
+
+                    info!(
+                        "[ENGINE] Trick {} complete, winner: {}, score: HUMAN={} AI={}",
+                        engine.current_trick - 1,
+                        engine.players[next_idx].player_id,
+                        engine.score.human,
+                        engine.score.ai
+                    );
+
+                    // 發送 YOUR_TURN 給下一 trick 的第一位 (上一 trick 贏家)
+                    let your_turn_msg = engine.your_turn_message(next_idx);
+                    let next_conn_id = engine.players[next_idx].conn_id;
+                    send_to(&state.clients, next_conn_id, &your_turn_msg);
+                    info!(
+                        "[ENGINE] YOUR_TURN -> {} (trick {})",
+                        engine.players[next_idx].player_id, engine.current_trick
+                    );
+                }
+
+                TrickResolution::GameOver(result_msg) => {
+                    // 廣播最後一個 TRICK_RESULT
+                    for &cid in &engine.all_conn_ids() {
+                        send_to(&state.clients, cid, &result_msg);
+                    }
+
+                    // 廣播 GAME_OVER
+                    let game_over_msg = engine.game_over_message();
+                    for &cid in &engine.all_conn_ids() {
+                        send_to(&state.clients, cid, &game_over_msg);
+                    }
+
+                    info!(
+                        "[ENGINE] Game over! Final score: HUMAN={} AI={}, Winner: {:?}",
+                        engine.score.human,
+                        engine.score.ai,
+                        if engine.score.human > engine.score.ai {
+                            "HUMAN"
+                        } else {
+                            "AI"
+                        }
+                    );
+
+                    // 移除遊戲 (可選: 保留用於重播)
+                    // state.games.remove(&room_id);
+                }
+            }
         }
     }
 }
 
-/// 發送訊息給特定 client
 fn send_to(clients: &HashMap<ConnectionId, ClientSender>, conn_id: ConnectionId, msg: &ServerMessage) {
     if let Some(sender) = clients.get(&conn_id) {
         if sender.send(msg.clone()).is_err() {
@@ -291,17 +477,6 @@ fn send_to(clients: &HashMap<ConnectionId, ClientSender>, conn_id: ConnectionId,
     }
 }
 
-/// 廣播訊息給所有 clients
-#[allow(dead_code)]
-fn broadcast(clients: &HashMap<ConnectionId, ClientSender>, msg: &ServerMessage) {
-    for (conn_id, sender) in clients {
-        if sender.send(msg.clone()).is_err() {
-            warn!("[GAME] Failed to broadcast to #{}", conn_id);
-        }
-    }
-}
-
-/// 從命令列參數解析 port
 fn parse_port_from_args() -> Option<u16> {
     let args: Vec<String> = env::args().collect();
     let mut i = 1;
