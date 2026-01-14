@@ -84,126 +84,126 @@
 
 ## EPIC 1 - TCP Networking Core (Rust Server) `@Claude`
 
-### S1.1 TCP listener setup via socket2 `[P0]` `TODO` `@Claude`
+### S1.1 TCP listener setup via socket2 `[P0]` `DONE` `@Claude`
 
 **依賴**: S0.1
 **檔案**: `server/src/net/listener.rs`, `server/Cargo.toml`
 **驗收指令**: `cargo run` 顯示 "Listening on 0.0.0.0:8888"
 
 **DoD**:
-- [ ] 建立 Rust 專案 (`cargo init`)
-- [ ] 加入 `socket2` dependency
-- [ ] `Socket::new(Domain::IPV4, Type::STREAM, Protocol::TCP)`
-- [ ] `set_reuse_address(true)`
-- [ ] `bind()` 到設定的 port
-- [ ] `listen(128)` 設定 backlog
-- [ ] CLI 印出 bind 成功訊息
+- [x] 建立 Rust 專案 (`cargo init`)
+- [x] 加入 `socket2` dependency
+- [x] `Socket::new(Domain::IPV4, Type::STREAM, Protocol::TCP)`
+- [x] `set_reuse_address(true)`
+- [x] `bind()` 到設定的 port
+- [x] `listen(128)` 設定 backlog
+- [x] CLI 印出 bind 成功訊息
 
 ---
 
-### S1.2 Accept loop & connection registry `[P0]` `TODO` `@Claude`
+### S1.2 Accept loop & connection registry `[P0]` `DONE` `@Claude`
 
 **依賴**: S1.1
-**檔案**: `server/src/net/listener.rs`, `server/src/connection.rs`
+**檔案**: `server/src/net/listener.rs`, `server/src/net/connection.rs`
 **驗收指令**: 使用 `nc localhost 8888` 連線，server 印出連線資訊
 
 **DoD**:
-- [ ] `socket.accept()` 迴圈
-- [ ] 為每個連線分配 connection ID
-- [ ] 儲存 peer address
-- [ ] 印出 connect/disconnect log
-- [ ] 支援同時多個連線
+- [x] `socket.accept()` 迴圈
+- [x] 為每個連線分配 connection ID
+- [x] 儲存 peer address
+- [x] 印出 connect/disconnect log
+- [x] 支援同時多個連線
 
 ---
 
-### S1.3 NDJSON codec (server side) `[P0]` `TODO` `@Claude`
+### S1.3 NDJSON codec (server side) `[P0]` `DONE` `@Claude`
 
 **依賴**: S1.2
 **檔案**: `server/src/protocol/codec.rs`, `server/src/protocol/messages.rs`
 **驗收指令**: 送 `{"type":"PING"}\n` 能收到回應
 
 **DoD**:
-- [ ] 加入 `serde`, `serde_json` dependencies
-- [ ] 定義 `Message` enum (使用 serde tag)
-- [ ] `BufReader::read_line()` 讀取一行
-- [ ] `serde_json::from_str()` 解析
-- [ ] `serde_json::to_string()` + `\n` 發送
-- [ ] 處理 parse error (回傳 ERROR message)
+- [x] 加入 `serde`, `serde_json` dependencies
+- [x] 定義 `Message` enum (使用 serde tag)
+- [x] `BufReader::read_line()` 讀取一行
+- [x] `serde_json::from_str()` 解析
+- [x] `serde_json::to_string()` + `\n` 發送
+- [x] 處理 parse error (回傳 ERROR message)
 
 ---
 
-### S1.4 Per-connection thread model `[P0]` `TODO` `@Claude`
+### S1.4 Per-connection thread model `[P0]` `DONE` `@Claude`
 
 **依賴**: S1.3
 **檔案**: `server/src/net/handler.rs`
 **驗收指令**: 4 個 client 同時連線，各自獨立處理
 
 **DoD**:
-- [ ] `std::thread::spawn()` 為每個連線建立 thread
-- [ ] 建立 `mpsc::channel` 傳送事件到 game loop
-- [ ] 每個 handler 持有 `Sender<GameEvent>`
-- [ ] Clean shutdown path (處理 thread panic)
-- [ ] 測試：4 client 同時 echo
+- [x] `std::thread::spawn()` 為每個連線建立 thread
+- [x] 建立 `mpsc::channel` 傳送事件到 game loop
+- [x] 每個 handler 持有 `Sender<GameEvent>`
+- [x] Clean shutdown path (處理 thread panic)
+- [x] 測試：4 client 同時 echo
 
 ---
 
-### S1.5 Main event loop with mpsc `[P1]` `TODO` `@Claude`
+### S1.5 Main event loop with mpsc `[P1]` `DONE` `@Claude`
 
 **依賴**: S1.4
 **檔案**: `server/src/main.rs`
 **驗收指令**: 事件能從 handler thread 傳到 main thread
 
 **DoD**:
-- [ ] Main thread 持有 `Receiver<GameEvent>`
-- [ ] 事件 dispatch 架構
-- [ ] Broadcast 機制 (送訊息給所有 clients)
-- [ ] `Arc<Mutex<HashMap<ConnectionId, TcpStream>>>` 或類似結構
+- [x] Main thread 持有 `Receiver<GameEvent>`
+- [x] 事件 dispatch 架構
+- [x] Broadcast 機制 (送訊息給所有 clients)
+- [x] `HashMap<ConnectionId, ClientSender>` 管理連線
 
 ---
 
 ## EPIC 2 - Lobby & Matchmaking `@Claude`
 
-### S2.1 HELLO/WELCOME handshake `[P0]` `TODO` `@Claude`
+### S2.1 HELLO/WELCOME handshake `[P0]` `DONE` `@Claude`
 
 **依賴**: S1.3
 **檔案**: `server/src/lobby/handshake.rs`
 **驗收指令**: 送 HELLO，收到 WELCOME 含 player_id
 
 **DoD**:
-- [ ] 解析 HELLO message (role, nickname, proto)
-- [ ] 驗證 nickname 長度 (1-16 chars)
-- [ ] 分配 player_id (P1-P4)
-- [ ] 處理 nickname 重複 (加後綴)
-- [ ] 回傳 WELCOME 或 ERROR
+- [x] 解析 HELLO message (role, nickname, proto)
+- [x] 驗證 nickname 長度 (1-16 chars)
+- [x] 分配 player_id (P1-P4)
+- [x] 處理 nickname 重複 (加後綴)
+- [x] 回傳 WELCOME 或 ERROR
 
 ---
 
-### S2.2 AI role authentication `[P1]` `TODO` `@Claude`
+### S2.2 AI role authentication `[P1]` `DONE` `@Claude`
 
 **依賴**: S2.1
-**檔案**: `server/src/lobby/auth.rs`
+**檔案**: `server/src/lobby/handshake.rs`
 **驗收指令**: AI 無 auth token 被拒絕
 
 **DoD**:
-- [ ] AI client 必須提供 `auth` 欄位
-- [ ] 驗證 auth token (初版用簡單字串比對)
-- [ ] 驗證失敗回傳 ERROR(AUTH_FAILED)
-- [ ] HUMAN client 不需要 token
+- [x] AI client 必須提供 `auth` 欄位
+- [x] 驗證 auth token (環境變數 `AI_AUTH_TOKEN`)
+- [x] 驗證失敗回傳 ERROR(AUTH_FAILED)
+- [x] HUMAN client 不需要 token
 
 ---
 
-### S2.3 Room creation & start rule `[P0]` `TODO` `@Claude`
+### S2.3 Room creation & start rule `[P0]` `DONE` `@Claude`
 
 **依賴**: S2.1
 **檔案**: `server/src/lobby/room.rs`
 **驗收指令**: 4 人加入後自動開始遊戲
 
 **DoD**:
-- [ ] 等待條件：n humans + (4-n) AIs, n ∈ {1,2,3,4}
-- [ ] 新玩家加入時 broadcast ROOM_WAIT
-- [ ] 滿足條件時 broadcast ROOM_START
-- [ ] 分配隊伍 (HUMAN team vs AI team)
-- [ ] 紀錄 seed (用於重現發牌)
+- [x] 等待條件：n humans + (4-n) AIs, n ∈ {1,2,3,4}
+- [x] 新玩家加入時 broadcast ROOM_WAIT
+- [x] 滿足條件時 broadcast ROOM_START
+- [x] 分配隊伍 (HUMAN team vs AI team)
+- [x] 紀錄 seed (用於重現發牌)
 
 ---
 
@@ -302,16 +302,7 @@
 
 ### S4.2 Client heartbeat loop (Python) `[P1]` `TODO` `@Gemini`
 
-**依賴**: S5.1
-**檔案**: `clients/common/heartbeat.py`
-**驗收指令**: CLI 顯示 RTT 和 loss rate
-
-**DoD**:
-- [ ] UDP socket 建立
-- [ ] 每秒發送 HB_PING (seq 遞增)
-- [ ] 計算 RTT = now - t_client_ms
-- [ ] 計算 loss rate = missed_seq / total_sent
-- [ ] CLI 顯示 metrics
+> **Note**: 詳細 DoD 與進度請參閱 `clnt_stories.md`。
 
 ---
 
@@ -329,68 +320,9 @@
 
 ---
 
-## EPIC 5 - Python Clients `@Gemini`
+## EPIC 5 - Clients (Core) `@Gemini`
 
-### S5.1 Human CLI client - connection `[P0]` `TODO` `@Gemini`
-
-**依賴**: S2.1
-**檔案**: `clients/human_cli/main.py`, `clients/common/codec.py`
-**驗收指令**: 能連線並完成 handshake
-
-**DoD**:
-- [ ] `socket.socket(AF_INET, SOCK_STREAM)`
-- [ ] NDJSON codec (encode/decode)
-- [ ] 送 HELLO，收 WELCOME
-- [ ] 顯示 player_id 和 room
-
----
-
-### S5.2 Human CLI client - game loop `[P0]` `TODO` `@Gemini`
-
-**依賴**: S5.1, S3.2
-**檔案**: `clients/human_cli/game.py`
-**驗收指令**: 能完成一局遊戲
-
-**DoD**:
-- [ ] 顯示手牌
-- [ ] 收到 YOUR_TURN 時提示輸入
-- [ ] 從 stdin 讀取選擇的牌
-- [ ] 送 PLAY message
-- [ ] 處理 PLAY_REJECT (重新輸入)
-- [ ] 顯示 TRICK_RESULT 和分數
-- [ ] 顯示 GAME_OVER 結果
-
----
-
-### S5.3 AI CLI client - fallback mode `[P0]` `TODO` `@Gemini`
-
-**依賴**: S5.1
-**檔案**: `clients/ai_cli/main.py`, `clients/ai_cli/fallback.py`
-**驗收指令**: AI 能用 rule-based 完成一局
-
-**DoD**:
-- [ ] 連線並 handshake (role=AI, auth)
-- [ ] 收到 YOUR_TURN 時自動選牌
-- [ ] Fallback 策略：出最小合法牌
-- [ ] 確保永遠不送非法牌
-- [ ] 處理 PLAY_REJECT (換牌)
-
----
-
-### S5.4 AI CLI client - Gemini integration `[P1]` `TODO` `@Gemini`
-
-**依賴**: S5.3
-**檔案**: `clients/ai_cli/gemini.py`
-**驗收指令**: AI 能用 Gemini API 決策
-
-**DoD**:
-- [ ] 安裝 `google-generativeai` SDK
-- [ ] 組裝 prompt (當前牌局狀態)
-- [ ] 呼叫 Gemini API
-- [ ] 解析回應 (預期 JSON 格式)
-- [ ] 驗證選牌是否合法
-- [ ] API 失敗/timeout → fallback
-- [ ] Rate limit 處理
+> **Note**: 本 Epic 所有 Story (S5.1 - S5.4) 詳細 DoD 與進度請參閱 `clnt_stories.md`。
 
 ---
 
@@ -476,60 +408,22 @@
 
 ## EPIC 7 - Python GUI Client (Tkinter) `@Gemini`
 
-### S7.1 GUI Scaffold & Threaded Bridge `[P0]` `TODO` `@Gemini`
-**依賴**: S5.1
-**檔案**: `clients/human_gui/app.py`
-**DoD**:
-- [ ] 實作 Tkinter `App` 類別與主迴圈
-- [ ] 整合 `NetworkClient` 與 `queue.Queue`
-- [ ] 實作 `.after()` 輪詢機制處理網路訊息
-- [ ] 基礎 Login 介面 (IP, Port, Name)
-
-### S7.2 Card Rendering Engine `[P1]` `TODO` `@Gemini`
-**依賴**: S7.1
-**檔案**: `clients/human_gui/components/card.py`
-**DoD**:
-- [ ] 在 Canvas 上繪製向量撲克牌 (非圖片)
-- [ ] 支援顯示花色、點數、背面狀態
-- [ ] 實作手牌佈局演算法 (扇形或直線排列)
-
-### S7.3 Game Board & Interaction `[P1]` `TODO` `@Gemini`
-**依賴**: S7.2, S3.2
-**檔案**: `clients/human_gui/views/table.py`
-**DoD**:
-- [ ] 渲染遊戲桌面、其他玩家位置、出牌區
-- [ ] 實作卡牌點擊事件 -> 送出 `PLAY` 訊息
-- [ ] 只有在 `YOUR_TURN` 且為 `legal` 的卡牌才可點擊 (視覺提示)
-
-### S7.4 State Synchronization & Logging `[P2]` `TODO` `@Gemini`
-**依賴**: S7.3
-**檔案**: `clients/human_gui/app.py`
-**DoD**:
-- [ ] 收到 `STATE` / `PLAY_BROADCAST` 時更新畫面
-- [ ] 右側 Side Panel 顯示遊戲日誌 (Log)
-- [ ] 即時更新分數看板
+> **Note**: 本 Epic 所有 Story (S7.1 - S7.4) 詳細 DoD 與進度請參閱 `clnt_stories.md`。
 
 ---
 
 ## Progress Summary
 
+> Client 端的詳細狀態請參考 `clnt_stories.md`。以下僅列出 Server 與 Shared 任務。
+
 | EPIC | Owner | Total | Done | In Progress | TODO |
 |------|-------|-------|------|-------------|------|
 | EPIC 0 - Scaffold | @Shared | 4 | 4 | 0 | 0 |
-| EPIC 1 - TCP Core | @Claude | 5 | 0 | 0 | 5 |
-| EPIC 2 - Lobby | @Claude | 3 | 0 | 0 | 3 |
+| EPIC 1 - TCP Core | @Claude | 5 | 5 | 0 | 0 |
+| EPIC 2 - Lobby | @Claude | 3 | 3 | 0 | 0 |
 | EPIC 3 - Game Engine | @Claude | 5 | 0 | 0 | 5 |
 | EPIC 4 - UDP Heartbeat | @Both | 3 | 0 | 0 | 3 |
-| EPIC 5 - Clients (Core) | @Gemini | 4 | 0 | 0 | 4 |
+| EPIC 5 - Clients (Core) | @Gemini | (See clnt_stories) | - | - | - |
 | EPIC 6 - Demo & QA | @Shared | 3 | 0 | 0 | 3 |
-| EPIC 7 - GUI Client | @Gemini | 4 | 0 | 0 | 4 |
+| EPIC 7 - GUI Client | @Gemini | (See clnt_stories) | - | - | - |
 | BONUS | @TBD | 3 | 0 | 0 | 3 |
-| **Total** | - | **34** | **4** | **0** | **30** |
-
-### Parallel Development Status
-
-| Role | Stories Assigned | Completed | Remaining |
-|------|------------------|-----------|-----------|
-| @Claude (Server) | S1.1-S1.5, S2.1-S2.3, S3.1-S3.5, S4.1, S4.3 | 0 | 14 |
-| @Gemini (Client) | S4.2, S5.1-S5.4, S7.1-S7.4 | 0 | 9 |
-| @Shared | S0.1-S0.4, S6.1-S6.3 | 4 | 3 |
