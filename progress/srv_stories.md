@@ -24,8 +24,8 @@
 | EPIC 1 - TCP Core | 5 | 5 | 0 | 0 |
 | EPIC 2 - Lobby | 3 | 3 | 0 | 0 |
 | EPIC 3 - Game Engine | 5 | 5 | 0 | 0 |
-| EPIC 4 - UDP Heartbeat (Server) | 2 | 0 | 0 | 2 |
-| **Total** | **15** | **13** | **0** | **2** |
+| EPIC 4 - UDP Heartbeat (Server) | 2 | 2 | 0 | 0 |
+| **Total** | **15** | **15** | **0** | **0** |
 
 ---
 
@@ -217,32 +217,32 @@
 
 ---
 
-## EPIC 4 - UDP Heartbeat (Server Side) `TODO`
+## EPIC 4 - UDP Heartbeat (Server Side) `DONE`
 
-### S4.1 UDP server bind & ping/pong `[P1]` `TODO`
+### S4.1 UDP server bind & ping/pong `[P1]` `DONE`
 
 **檔案**: `server/src/net/heartbeat.rs`
 **驗收指令**: 用 `nc -u localhost 8889` 送 PING 收到 PONG
 
 **DoD**:
-- [ ] `UdpSocket::bind()` 到 UDP port
-- [ ] 獨立 thread 處理 heartbeat
-- [ ] 解析 HB_PING (seq, t_client_ms)
-- [ ] 回覆 HB_PONG (加上 t_server_ms)
-- [ ] 紀錄每個 client 的最後 heartbeat 時間
+- [x] `UdpSocket::bind()` 到 UDP port
+- [x] 獨立 thread 處理 heartbeat
+- [x] 解析 HB_PING (seq, t_client_ms)
+- [x] 回覆 HB_PONG (加上 t_server_ms)
+- [x] 紀錄每個 client 的最後 heartbeat 時間
 
 ---
 
-### S4.3 Stale client detection (optional) `[P2]` `TODO`
+### S4.3 Stale client detection (optional) `[P2]` `DONE`
 
 **檔案**: `server/src/net/heartbeat.rs`
 **驗收指令**: Client 停止 heartbeat 後 server log 警告
 
 **DoD**:
-- [ ] 追蹤每個 client 的 last_heartbeat_time
-- [ ] 超過 threshold (如 10 秒) 標記為 stale
-- [ ] Log 警告訊息
-- [ ] (選) 通知 game engine
+- [x] 追蹤每個 client 的 last_heartbeat_time
+- [x] 超過 threshold (如 10 秒) 標記為 stale
+- [x] Log 警告訊息
+- [x] (選) 通知 game engine
 
 ---
 
@@ -250,17 +250,17 @@
 
 ```
 server/src/
-├── main.rs              # Accept loop + Game loop + Message handling
+├── main.rs              # Accept loop + Game loop + UDP Heartbeat 啟動
 ├── net/
 │   ├── mod.rs
 │   ├── listener.rs      # socket2 TCP listener
 │   ├── connection.rs    # Connection ID 管理
 │   ├── handler.rs       # Per-connection thread
 │   ├── event.rs         # mpsc GameEvent 定義
-│   └── heartbeat.rs     # (TODO) UDP heartbeat
+│   └── heartbeat.rs     # UDP heartbeat server (HB_PING/HB_PONG)
 ├── protocol/
 │   ├── mod.rs
-│   ├── messages.rs      # 完整 message types
+│   ├── messages.rs      # 完整 message types + HeartbeatPing/Pong
 │   └── codec.rs         # NDJSON 編解碼
 ├── lobby/
 │   ├── mod.rs
@@ -278,12 +278,20 @@ server/src/
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Unit Tests | 31 | ✅ All Passed |
+| Unit Tests | 37 | ✅ All Passed |
 | Integration | Manual | ✅ Verified |
 
 ---
 
 ## Changelog
+
+### 2026-01-14 (Update 3)
+- 完成 EPIC 4 (S4.1, S4.3) - UDP Heartbeat Server
+  - heartbeat.rs: UDP socket bind, HB_PING/HB_PONG 處理
+  - 獨立 thread 處理 heartbeat
+  - Stale client detection (10 秒 threshold)
+  - 整合到 main.rs，UDP port = TCP port + 1
+- 測試數量: 31 → 37
 
 ### 2026-01-14 (Update 2)
 - 完成 EPIC 3 (S3.1 ~ S3.5) - Game Engine MVP

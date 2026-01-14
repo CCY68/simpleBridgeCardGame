@@ -186,6 +186,36 @@ pub enum ServerMessage {
     Pong,
 }
 
+/// UDP Heartbeat Ping (Client → Server)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HeartbeatPing {
+    #[serde(rename = "type")]
+    pub msg_type: String, // "HB_PING"
+    pub seq: u64,
+    pub t_client_ms: u64,
+}
+
+/// UDP Heartbeat Pong (Server → Client)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HeartbeatPong {
+    #[serde(rename = "type")]
+    pub msg_type: String, // "HB_PONG"
+    pub seq: u64,
+    pub t_client_ms: u64,
+    pub t_server_ms: u64,
+}
+
+impl HeartbeatPong {
+    pub fn from_ping(ping: &HeartbeatPing, server_time: u64) -> Self {
+        Self {
+            msg_type: "HB_PONG".to_string(),
+            seq: ping.seq,
+            t_client_ms: ping.t_client_ms,
+            t_server_ms: server_time,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

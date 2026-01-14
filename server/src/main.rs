@@ -7,7 +7,8 @@ use game::{GameEngine, GamePhase, PlayError, PlayResult, TrickResolution};
 use lobby::{HandshakeResult, RoomManager, RoomState, process_hello};
 use log::{error, info, warn};
 use net::{
-    ClientSender, ConnectionId, GameEvent, create_event_channel, next_connection_id, spawn_handler,
+    ClientSender, ConnectionId, GameEvent, create_event_channel, create_heartbeat_tracker,
+    next_connection_id, spawn_handler, spawn_heartbeat_server,
 };
 use protocol::{ClientMessage, ErrorCode, RejectReason, RoomId, ServerMessage};
 use std::collections::HashMap;
@@ -16,6 +17,8 @@ use std::net::SocketAddr;
 use std::thread;
 
 const DEFAULT_PORT: u16 = 8888;
+const DEFAULT_UDP_PORT_OFFSET: u16 = 1; // UDP port = TCP port + 1
+const STALE_THRESHOLD_SECS: u64 = 10; // Client stale 閾值 (秒)
 
 /// 伺服器設定
 struct ServerConfig {
@@ -69,6 +72,21 @@ fn main() {
 
     let local_addr = listener.local_addr().expect("Failed to get local address");
     info!("[SERVER] Listening on {}", local_addr);
+
+    // 啟動 UDP Heartbeat Server
+    let udp_port = port + DEFAULT_UDP_PORT_OFFSET;
+    let heartbeat_tracker = create_heartbeat_tracker();
+    match spawn_heartbeat_server(udp_port, heartbeat_tracker.clone(), STALE_THRESHOLD_SECS) {
+        Ok(_) => {
+            info!("[SERVER] UDP Heartbeat server started on port {}", udp_port);
+        }
+        Err(e) => {
+            warn!(
+                "[SERVER] Failed to start UDP Heartbeat server: {} (continuing without heartbeat)",
+                e
+            );
+        }
+    }
 
     let (event_tx, event_rx) = create_event_channel();
 

@@ -1,6 +1,7 @@
 pub mod connection;
 pub mod event;
 pub mod handler;
+pub mod heartbeat;
 pub mod listener;
 
 pub use connection::{
@@ -12,4 +13,8 @@ pub use event::{
     create_event_channel,
 };
 pub use handler::spawn_handler;
+pub use heartbeat::{
+    ClientHeartbeatState, HeartbeatTracker, check_stale_clients, create_heartbeat_tracker,
+    get_heartbeat_stats, spawn_heartbeat_server,
+};
 pub use listener::create_tcp_listener;
