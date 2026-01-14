@@ -4,6 +4,22 @@
 
 ---
 
+## Project Status Summary
+
+**Date**: 2026-01-14
+**Status**: Client-side Core Development Complete
+
+### Current Progress
+- **Client Side (@Gemini)**:
+    - EPIC 5 (CLI) & EPIC 7 (GUI) are fully implemented.
+    - S4.2 (UDP Heartbeat Client) is implemented and verified.
+    - Gemini AI integration for AI CLI is active.
+- **Server Side (@Claude)**:
+    - EPIC 1 (TCP Core) & EPIC 2 (Lobby) are reported as completed.
+- **Next Step**: Integration testing between Server and Client using the established protocol.
+
+---
+
 ## Technical Decisions
 
 ### TD-001: Why socket2 instead of tokio?

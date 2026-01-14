@@ -244,6 +244,12 @@ reader.read_line(&mut buf)?; // 會 block 整個 server
 
 ---
 
+## Last Known State (2026-01-14)
+
+- **Client Development**: EPIC 5 (CLI), EPIC 7 (GUI), and S4.2 (UDP Heartbeat) are DONE.
+- **Server Development**: EPIC 1 & 2 are reported DONE.
+- **Repository**: All changes committed. Ready for integration testing.
+
 ---
 
 ## How to Develop a Story
