@@ -176,6 +176,7 @@ impl Deck {
     }
 
     /// 取得所有牌
+    #[allow(dead_code)]
     pub fn cards(&self) -> &[CardData] {
         &self.cards
     }

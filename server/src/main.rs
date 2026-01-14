@@ -3,7 +3,7 @@ mod lobby;
 mod net;
 mod protocol;
 
-use game::{GameEngine, GamePhase, PlayError, PlayResult, TrickResolution};
+use game::{GameEngine, PlayError, PlayResult, TrickResolution};
 use lobby::{HandshakeResult, RoomManager, RoomState, process_hello};
 use log::{error, info, warn};
 use net::{
@@ -241,7 +241,6 @@ fn handle_hello(
                 let conn_ids;
                 let can_start;
                 let seed;
-                let players_data;
 
                 {
                     room.add_player(conn_id, player_id, final_nickname, *role);
@@ -250,13 +249,6 @@ fn handle_hello(
                     conn_ids = room.conn_ids();
                     can_start = room.can_start();
                     seed = room.seed;
-
-                    // 收集玩家資料用於建立 GameEngine
-                    players_data = room
-                        .players
-                        .iter()
-                        .map(|p| (p.conn_id, p.player_id.clone(), p.team.unwrap_or(protocol::Team::Human)))
-                        .collect::<Vec<_>>();
                 }
 
                 state.room_manager.associate_conn(conn_id, &room_id_clone);
@@ -376,12 +368,12 @@ fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
     let (player_idx, card_data) = match engine.validate_play(conn_id, card) {
         Ok(result) => result,
         Err(e) => {
-            let (code, reason) = match e {
-                PlayError::NotYourTurn => (ErrorCode::NotYourTurn, RejectReason::NotYourTurn),
-                PlayError::NotInHand => (ErrorCode::InvalidMove, RejectReason::NotInHand),
-                PlayError::NotLegal => (ErrorCode::InvalidMove, RejectReason::NotLegal),
-                PlayError::InvalidCard => (ErrorCode::InvalidMove, RejectReason::NotInHand),
-                PlayError::NotInGame => (ErrorCode::ProtocolError, RejectReason::NotYourTurn),
+            let reason = match e {
+                PlayError::NotYourTurn => RejectReason::NotYourTurn,
+                PlayError::NotInHand => RejectReason::NotInHand,
+                PlayError::NotLegal => RejectReason::NotLegal,
+                PlayError::InvalidCard => RejectReason::NotInHand,
+                PlayError::NotInGame => RejectReason::NotYourTurn,
             };
 
             info!("[ENGINE] #{} PLAY {} rejected: {:?}", conn_id, card, e);

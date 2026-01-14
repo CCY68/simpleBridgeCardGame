@@ -15,12 +15,14 @@ pub fn next_connection_id() -> ConnectionId {
 }
 
 /// 單一連線的資訊
+#[allow(dead_code)]
 pub struct ConnectionInfo {
     pub id: ConnectionId,
     pub peer_addr: SocketAddr,
     pub stream: TcpStream,
 }
 
+#[allow(dead_code)]
 impl ConnectionInfo {
     pub fn new(stream: TcpStream) -> std::io::Result<Self> {
         let peer_addr = stream.peer_addr()?;
@@ -34,10 +36,12 @@ impl ConnectionInfo {
 }
 
 /// 連線註冊表 - 管理所有活躍連線
+#[allow(dead_code)]
 pub struct ConnectionRegistry {
     connections: HashMap<ConnectionId, SocketAddr>,
 }
 
+#[allow(dead_code)]
 impl ConnectionRegistry {
     pub fn new() -> Self {
         Self {
@@ -73,9 +77,11 @@ impl Default for ConnectionRegistry {
 }
 
 /// 執行緒安全的連線註冊表
+#[allow(dead_code)]
 pub type SharedRegistry = Arc<Mutex<ConnectionRegistry>>;
 
 /// 建立共享的連線註冊表
+#[allow(dead_code)]
 pub fn create_shared_registry() -> SharedRegistry {
     Arc::new(Mutex::new(ConnectionRegistry::new()))
 }

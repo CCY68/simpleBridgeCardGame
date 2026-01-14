@@ -22,6 +22,7 @@ pub enum RoomState {
     /// 遊戲進行中
     Playing,
     /// 遊戲結束
+    #[allow(dead_code)]
     Finished,
 }
 
@@ -133,11 +134,13 @@ impl Room {
     }
 
     /// 透過 conn_id 找玩家
+    #[allow(dead_code)]
     pub fn find_player(&self, conn_id: ConnectionId) -> Option<&Player> {
         self.players.iter().find(|p| p.conn_id == conn_id)
     }
 
     /// 透過 player_id 找玩家
+    #[allow(dead_code)]
     pub fn find_player_by_id(&self, player_id: &str) -> Option<&Player> {
         self.players.iter().find(|p| p.player_id == player_id)
     }
@@ -198,6 +201,7 @@ impl RoomManager {
     }
 
     /// 取得連線所在的房間
+    #[allow(dead_code)]
     pub fn get_room_for_conn(&self, conn_id: ConnectionId) -> Option<&Room> {
         self.conn_to_room
             .get(&conn_id)
@@ -205,6 +209,7 @@ impl RoomManager {
     }
 
     /// 取得連線所在的房間 (mutable)
+    #[allow(dead_code)]
     pub fn get_room_for_conn_mut(&mut self, conn_id: ConnectionId) -> Option<&mut Room> {
         if let Some(room_id) = self.conn_to_room.get(&conn_id).cloned() {
             self.rooms.get_mut(&room_id)
@@ -224,6 +229,7 @@ impl RoomManager {
     }
 
     /// 透過 ID 取得房間
+    #[allow(dead_code)]
     pub fn get_room(&self, room_id: &str) -> Option<&Room> {
         self.rooms.get(room_id)
     }

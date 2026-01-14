@@ -61,6 +61,7 @@ impl Codec {
     }
 
     /// 取得 peer address
+    #[allow(dead_code)]
     pub fn peer_addr(&self) -> io::Result<std::net::SocketAddr> {
         self.writer.peer_addr()
     }

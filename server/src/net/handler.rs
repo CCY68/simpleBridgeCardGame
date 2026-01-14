@@ -1,6 +1,6 @@
 use super::connection::ConnectionId;
 use super::event::{ClientReceiver, ClientSender, EventSender, GameEvent, create_client_channel};
-use crate::protocol::{ClientMessage, Codec, ErrorCode, ServerMessage};
+use crate::protocol::{Codec, ErrorCode};
 use log::{info, warn};
 use std::io;
 use std::net::TcpStream;

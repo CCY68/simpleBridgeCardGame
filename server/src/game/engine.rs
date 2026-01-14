@@ -1,7 +1,6 @@
-use super::deck::{CardData, Deck, Rank, Suit};
+use super::deck::{CardData, Deck};
 use crate::net::ConnectionId;
 use crate::protocol::{Card, PlayerId, Score, ServerMessage, TablePlay, Team, TrickHistory};
-use std::collections::HashMap;
 
 const CARDS_PER_PLAYER: usize = 13;
 const TOTAL_TRICKS: usize = 13;
@@ -119,13 +118,13 @@ impl GameEngine {
     }
 
     /// 取得當前應該出牌的玩家 conn_id
+    #[allow(dead_code)]
     pub fn current_player_conn_id(&self) -> Option<ConnectionId> {
         self.current_player_idx().map(|idx| self.players[idx].conn_id)
     }
 
     /// 產生 YOUR_TURN 訊息
     pub fn your_turn_message(&self, player_idx: usize) -> ServerMessage {
-        let player = &self.players[player_idx];
         let legal = self.get_legal_moves(player_idx);
 
         let table: Vec<TablePlay> = self
@@ -317,6 +316,7 @@ impl GameEngine {
     }
 
     /// 透過 conn_id 找玩家 index
+    #[allow(dead_code)]
     pub fn find_player_idx(&self, conn_id: ConnectionId) -> Option<usize> {
         self.players.iter().position(|p| p.conn_id == conn_id)
     }
@@ -351,6 +351,7 @@ pub enum TrickResolution {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::deck::{Rank, Suit};
 
     fn create_test_engine() -> GameEngine {
         let players = vec![

@@ -110,6 +110,7 @@ fn rand_u16() -> u16 {
 }
 
 /// 建立 PlayerInfo 結構
+#[allow(dead_code)]
 pub fn create_player_info(player_id: &str, nickname: &str, role: Role) -> PlayerInfo {
     PlayerInfo {
         id: player_id.to_string(),

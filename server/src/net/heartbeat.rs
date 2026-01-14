@@ -15,6 +15,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[derive(Debug, Clone)]
 pub struct ClientHeartbeatState {
     /// Client 地址
+    #[allow(dead_code)]
     pub addr: SocketAddr,
     /// 最後收到 heartbeat 的時間
     pub last_heartbeat: Instant,
@@ -189,6 +190,7 @@ pub fn spawn_heartbeat_server(
 }
 
 /// 取得所有活躍 clients 的統計
+#[allow(dead_code)]
 pub fn get_heartbeat_stats(tracker: &HeartbeatTracker) -> Vec<(SocketAddr, u64, Duration)> {
     let tracker = tracker.lock().unwrap();
     tracker
