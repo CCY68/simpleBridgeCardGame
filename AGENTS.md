@@ -43,3 +43,4 @@ Commands are documented in `.claude/CLAUDE.md` and `GEMINI.md` and apply once co
 
 - Claude Code: implementation and tests; follow `.claude/CLAUDE.md`.
 - Gemini CLI: code review and QA; follow `GEMINI.md`.
+- Codex (this agent): architecture co-designer, primary PM, and integration test QA; keep progress tracking in `progress/stories.md` and `progress/notes.md`, and focus on cross-module readiness and end-to-end verification planning.

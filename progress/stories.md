@@ -1,7 +1,8 @@
 # CardArena Development Stories
 
-> 每個 Story 對應一個可交付的功能單元。
-> 使用狀態標記追蹤進度：`TODO` → `IN_PROGRESS` → `DONE`
+> 本檔案以主 PM 的 QA 進度為主。
+> Server/Client 的開發進度請分別參考 `progress/srv_stories.md` 與 `progress/clnt_stories.md`。
+> 使用狀態標記追蹤 QA 進度：`TODO` → `IN_PROGRESS` → `DONE`
 
 ---
 
@@ -33,12 +34,13 @@
 **驗收指令**: `ls -la` 確認目錄結構存在
 
 **DoD**:
-- [ ] 建立 `server/` 目錄 (Rust)
-- [ ] 建立 `clients/` 目錄 (Python)
-- [ ] 建立 `protocol/` 目錄 (文件)
-- [ ] 建立 `progress/` 目錄 (追蹤)
-- [ ] 建立 `scripts/` 目錄 (腳本)
-- [ ] 建立 `.gitignore` (Rust + Python + OS)
+- [x] 建立 `server/` 目錄 (Rust)
+- [x] 建立 `clients/` 目錄 (Python)
+- [x] 建立 `protocol/` 目錄 (文件)
+- [x] 建立 `progress/` 目錄 (追蹤)
+- [x] 建立 `scripts/` 目錄 (腳本)
+- [x] 建立 `.gitignore` (Rust + Python + OS)
+- [x] 建立 `developing/` 用於草案與研究文件
 
 ---
 
@@ -49,10 +51,11 @@
 **驗收指令**: 檢查文件包含所有 message types
 
 **DoD**:
-- [ ] 定義 NDJSON framing 規則
-- [ ] 定義所有 message types (HELLO, WELCOME, DEAL, YOUR_TURN, PLAY, etc.)
-- [ ] 包含範例訊息
-- [ ] 定義 error codes
+- [x] 定義 NDJSON framing 規則
+- [x] 定義所有 message types (HELLO, WELCOME, DEAL, YOUR_TURN, PLAY, etc.)
+- [x] 包含範例訊息
+- [x] 定義 error codes
+- [x] 補齊整合測試規格文件 `protocol/integration_tests.md`
 
 ---
 
@@ -63,9 +66,9 @@
 **驗收指令**: 表格包含 TCP + UDP lifecycle
 
 **DoD**:
-- [ ] C/C++ vs Rust 對照表 (socket, bind, listen, accept, etc.)
-- [ ] 包含程式碼範例
-- [ ] 說明為何選擇 socket2
+- [x] C/C++ vs Rust 對照表 (socket, bind, listen, accept, etc.)
+- [x] 包含程式碼範例
+- [x] 說明為何選擇 socket2
 
 ---
 
@@ -75,10 +78,10 @@
 **檔案**: `.gitignore`
 
 **DoD**:
-- [ ] Rust: `target/`, `Cargo.lock` (for library), `*.pdb`
-- [ ] Python: `__pycache__/`, `*.pyc`, `.venv/`, `*.egg-info/`
-- [ ] OS: `.DS_Store`, `Thumbs.db`
-- [ ] IDE: `.idea/`, `.vscode/`, `*.swp`
+- [x] Rust: `target/`, `Cargo.lock` (for library), `*.pdb`
+- [x] Python: `__pycache__/`, `*.pyc`, `.venv/`, `*.egg-info/`
+- [x] OS: `.DS_Store`, `Thumbs.db`
+- [x] IDE: `.idea/`, `.vscode/`, `*.swp`
 
 ---
 
@@ -412,18 +415,18 @@
 
 ---
 
-## Progress Summary
+## Progress Summary (PM QA)
 
-> Client 端的詳細狀態請參考 `clnt_stories.md`。以下僅列出 Server 與 Shared 任務。
+> Client 端與 Server 端的開發細節請參考 `progress/clnt_stories.md` 與 `progress/srv_stories.md`。
 
-| EPIC | Owner | Total | Done | In Progress | TODO |
-|------|-------|-------|------|-------------|------|
-| EPIC 0 - Scaffold | @Shared | 4 | 4 | 0 | 0 |
-| EPIC 1 - TCP Core | @Claude | 5 | 5 | 0 | 0 |
-| EPIC 2 - Lobby | @Claude | 3 | 3 | 0 | 0 |
-| EPIC 3 - Game Engine | @Claude | 5 | 0 | 0 | 5 |
-| EPIC 4 - UDP Heartbeat | @Both | 3 | 0 | 0 | 3 |
-| EPIC 5 - Clients (Core) | @Gemini | (See clnt_stories) | - | - | - |
-| EPIC 6 - Demo & QA | @Shared | 3 | 0 | 0 | 3 |
-| EPIC 7 - GUI Client | @Gemini | (See clnt_stories) | - | - | - |
-| BONUS | @TBD | 3 | 0 | 0 | 3 |
+| EPIC | QA Status | Notes |
+|------|-----------|-------|
+| EPIC 0 - Scaffold | DONE | 環境與文件基礎已建立 |
+| EPIC 1 - TCP Core | TODO | 依 `protocol/integration_tests.md` 進行驗收 |
+| EPIC 2 - Lobby | TODO | 依 `protocol/integration_tests.md` 進行驗收 |
+| EPIC 3 - Game Engine | TODO | 等待功能完成 |
+| EPIC 4 - UDP Heartbeat | TODO | 等待 Server/Client 實作 |
+| EPIC 5 - Clients (Core) | TODO | 需與 Server 完整對接驗收 |
+| EPIC 6 - Demo & QA | TODO | 整合腳本與端對端驗收 |
+| EPIC 7 - GUI Client | TODO | 需與 Server 完整對接驗收 |
+| BONUS | TODO | 依需求再排定 |
