@@ -65,6 +65,27 @@ Template:
 
 ---
 
+## Test Results
+
+### 2026-01-14: QA Verification Run
+
+**Scope**:
+- Server unit tests
+- Client unit tests (codec/heartbeat/fallback)
+- UDP heartbeat integration script
+
+**Commands**:
+- `cd server && cargo test`
+- `pytest clients/`
+- `python scripts/test_heartbeat.py`
+
+**Results**:
+- Server: 37 passed (warnings: unused imports/variables)
+- Clients: 5 passed
+- Heartbeat script: HB_PING/HB_PONG exchange OK, RTT/loss metrics reported
+
+---
+
 ## Meeting Notes
 
 <!--
