@@ -44,3 +44,13 @@ Commands are documented in `.claude/CLAUDE.md` and `GEMINI.md` and apply once co
 - Claude Code: implementation and tests; follow `.claude/CLAUDE.md`.
 - Gemini CLI: code review and QA; follow `GEMINI.md`.
 - Codex (this agent): architecture co-designer, primary PM, and integration test QA; keep progress tracking in `progress/stories.md` and `progress/notes.md`, and focus on cross-module readiness and end-to-end verification planning.
+
+## Codex Status Summary
+
+**Timestamp**: 2026-01-14 17:48:33 +0800
+
+- Server dev marked complete in `progress/srv_stories.md`; client dev marked complete in `progress/clnt_stories.md`.
+- PM QA status in `progress/stories.md` still pending update; integration tests reported OK by another QA.
+- Local tests run: `cd server && cargo test` (37 passed, warnings only), `pytest clients/` (5 passed after adding smoke tests), `python scripts/test_heartbeat.py` (HB_PING/HB_PONG OK).
+- New commit created: `64dcaac` `[S6.3] Add client QA smoke tests` (adds `clients/tests/*`, updates `progress/notes.md`).
+- Push to `origin` pending due to network restrictions in this environment.
