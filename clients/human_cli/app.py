@@ -8,6 +8,7 @@ import threading
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from clients.common.connection import NetworkClient
+from clients.common.heartbeat import HeartbeatClient
 
 class HumanCLI:
     def __init__(self, host: str, port: int, nickname: str):
@@ -15,6 +16,7 @@ class HumanCLI:
         self.port = port
         self.nickname = nickname
         self.client = NetworkClient()
+        self.hb_client = None
         self.input_event = threading.Event()
         self.my_turn_data = None
         self.running = True
@@ -24,6 +26,10 @@ class HumanCLI:
         if not self.client.connect(self.host, self.port):
             print("Connection failed.")
             return
+
+        # Start Heartbeat (UDP port = TCP port + 1)
+        self.hb_client = HeartbeatClient(self.host, self.port + 1)
+        self.hb_client.start()
 
         # Handshake
         self.client.send({
@@ -47,6 +53,8 @@ class HumanCLI:
         except KeyboardInterrupt:
             print("\nExiting...")
         finally:
+            if self.hb_client:
+                self.hb_client.stop()
             self.client.close()
             self.running = False
 
@@ -55,6 +63,8 @@ class HumanCLI:
 
         if m_type == "WELCOME":
             print(f"✅ Connected! ID: {msg.get('player_id')} | Room: {msg.get('room')}")
+            if self.hb_client:
+                print(f"❤️  Heartbeat Active. Metrics: {self.hb_client.get_metrics()}")
             print("Waiting for other players...")
 
         elif m_type == "ROOM_WAIT":
@@ -85,6 +95,9 @@ class HumanCLI:
         elif m_type == "TRICK_RESULT":
             print(f"🏆 Trick Winner: {msg.get('winner')}")
             print(f"   Score - HUMAN: {msg.get('score', {}).get('HUMAN', 0)} | AI: {msg.get('score', {}).get('AI', 0)}")
+            if self.hb_client:
+                m = self.hb_client.get_metrics()
+                print(f"   📊 Ping: {m['rtt_ms']}ms | Loss: {m['loss_rate']}%")
             print("-" * 40)
 
         elif m_type == "GAME_OVER":

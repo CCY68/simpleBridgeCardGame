@@ -18,18 +18,18 @@
 
 ## EPIC 4 - UDP Heartbeat
 
-### S4.2 Client heartbeat loop (Python) `[P1]` `TODO` `@Gemini`
+### S4.2 Client heartbeat loop (Python) `[P1]` `DONE` `@Gemini`
 
 **依賴**: S5.1
 **檔案**: `clients/common/heartbeat.py`
 **驗收指令**: CLI 顯示 RTT 和 loss rate
 
 **DoD**:
-- [ ] UDP socket 建立
-- [ ] 每秒發送 HB_PING (seq 遞增)
-- [ ] 計算 RTT = now - t_client_ms
-- [ ] 計算 loss rate = missed_seq / total_sent
-- [ ] CLI 顯示 metrics
+- [x] UDP socket 建立
+- [x] 每秒發送 HB_PING (seq 遞增)
+- [x] 計算 RTT = now - t_client_ms
+- [x] 計算 loss rate = missed_seq / total_sent
+- [x] CLI 顯示 metrics
 
 ---
 
@@ -133,7 +133,7 @@
 
 | EPIC | Total | Done | In Progress | TODO |
 |------|-------|------|-------------|------|
-| EPIC 4 - UDP Heartbeat | 1 | 0 | 0 | 1 |
+| EPIC 4 - UDP Heartbeat | 1 | 1 | 0 | 0 |
 | EPIC 5 - Clients (Core) | 4 | 4 | 0 | 0 |
 | EPIC 7 - GUI Client | 4 | 4 | 0 | 0 |
-| **Total** | **9** | **8** | **0** | **1** |
+| **Total** | **9** | **9** | **0** | **0** |
