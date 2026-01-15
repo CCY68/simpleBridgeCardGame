@@ -310,7 +310,8 @@ impl GameEngine {
         }
     }
 
-    /// 取得所有玩家的 conn_id
+    /// 取得所有玩家的 conn_id - 預留供未來擴充
+    #[allow(dead_code)]
     pub fn all_conn_ids(&self) -> Vec<ConnectionId> {
         self.players.iter().map(|p| p.conn_id).collect()
     }

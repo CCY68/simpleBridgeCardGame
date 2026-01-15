@@ -217,7 +217,8 @@ impl Room {
         self.players.iter().map(|p| p.conn_id).collect()
     }
 
-    /// 取得真實連線 ID (排除 AI 虛擬連線)
+    /// 取得真實連線 ID (排除 AI 虛擬連線) - 預留供未來擴充
+    #[allow(dead_code)]
     pub fn real_conn_ids(&self) -> Vec<ConnectionId> {
         self.players
             .iter()
@@ -231,7 +232,8 @@ impl Room {
         conn_id == AI_VIRTUAL_CONN_ID_1 || conn_id == AI_VIRTUAL_CONN_ID_2
     }
 
-    /// 檢查 player_id 是否為內建 AI
+    /// 檢查 player_id 是否為內建 AI - 預留供未來擴充
+    #[allow(dead_code)]
     pub fn is_builtin_ai(&self, player_id: &str) -> bool {
         player_id == "P3" || player_id == "P4"
     }

@@ -12,7 +12,8 @@ pub struct AiPlayer {
     pub player_id: PlayerId,
     /// 暱稱
     pub nickname: String,
-    /// 隊伍 (固定為 AI)
+    /// 隊伍 (固定為 AI) - 預留供未來擴充
+    #[allow(dead_code)]
     pub team: Team,
 }
 

@@ -43,6 +43,8 @@ pub trait AiStrategy: Send + Sync {
 pub struct SmartStrategy;
 
 impl SmartStrategy {
+    /// 建立新的 SmartStrategy 實例 - 預留供未來擴充
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }
