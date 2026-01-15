@@ -358,9 +358,9 @@
 - [x] 支援參數 (port, human count, seed)
 
 **實作說明**:
-- `run_local_demo.sh` - Linux/WSL 互動式 demo (支援 --port, --humans, --seed, --no-build)
-- `run_local_demo.ps1` - Windows PowerShell 互動式 demo
-- `run_auto_demo.sh` - 自動化 demo (無需人工互動，用於 CI/測試)
+- `run_local_demo.sh` - Linux/WSL 互動式 demo (支援 --port, --humans, --seed, --no-build, --cpp, --gui)
+- `run_local_demo.ps1` - Windows PowerShell 互動式 demo (支援 -Cpp, -Gui 參數)
+- `run_auto_demo.sh` - 自動化 demo (無需人工互動，支援 --build-cpp 編譯 C++ client)
 
 ---
 
@@ -400,6 +400,28 @@
 - Server: `net/handler.rs` 處理 Invalid JSON 和 timeout
 - Server: `lobby/room.rs::handle_disconnect()` 處理斷線
 - Demo: 腳本使用 `trap cleanup EXIT` 確保 process 清理
+
+---
+
+### S6.4 C++ Client Integration Verification `[P2]` `DONE` `@Shared`
+
+**依賴**: S8.3
+**檔案**: `scripts/test_cpp_integration.sh`
+**驗收指令**: `./scripts/test_cpp_integration.sh`
+
+**DoD**:
+- [x] C++ client 連線 + HELLO/WELCOME handshake
+- [x] C++ client 收到 DEAL 並正確顯示手牌
+- [x] C++ client 處理 YOUR_TURN 並成功出牌
+- [x] C++ client 完成 13 tricks 遊戲
+- [x] 驗證 Server log 無異常錯誤
+
+**測試結果**:
+- WELCOME received: ✓
+- DEAL received: ✓
+- Tricks completed: 13/13
+- GAME_OVER: ✓
+- Server errors: 0
 
 ---
 
@@ -470,17 +492,18 @@
 - [x] 讀取執行緒 (Reader Thread)
 - [x] 簡單的 send/recv 封裝
 
-### S8.3 NDJSON Protocol & Game Loop `[P1]` `TODO` `@Gemini`
+### S8.3 NDJSON Protocol & Game Loop `[P1]` `DONE` `@Gemini`
 
 **依賴**: S8.2
 **檔案**: `clients/cpp_cli/protocol.cpp`
 **驗收指令**: 能完成一局遊戲 (CLI 介面)
 
 **DoD**:
-- [ ] 手刻或引用簡易 JSON parser
-- [ ] 解析 HELLO/WELCOME
-- [ ] 處理 YOUR_TURN 顯示
-- [ ] 讀取 stdin 輸入並送出 PLAY 訊息
+- [x] 實作簡易 JSON 輔助工具 (json_helper.hpp)
+- [x] 解析 HELLO/WELCOME, DEAL, YOUR_TURN, TRICK_RESULT, GAME_OVER
+- [x] 實作 GameState 與 GameManager 進行狀態管理
+- [x] 支援輸入手牌索引 (Index) 進行出牌，並包含合法性檢查
+- [x] 整合 UI 渲染邏輯 (文字介面)
 
 ### S8.4 UDP Heartbeat (C++) `[P2]` `TODO` `@Gemini`
 

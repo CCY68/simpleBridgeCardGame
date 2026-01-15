@@ -4,15 +4,34 @@
 # 自動執行完整遊戲 (1 Auto-Human + 3 AI)，無需人工互動
 #
 # Usage:
-#   ./run_auto_demo.sh [--port PORT]
+#   ./run_auto_demo.sh [OPTIONS]
+#
+# Options:
+#   --port PORT      Server port (default: 8888)
+#   --build-cpp      Also build C++ client (for verification)
 #
 
 set -e
 
-PORT="${1:-8888}"
-if [ "$1" = "--port" ]; then
-    PORT="$2"
-fi
+PORT=8888
+BUILD_CPP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --port)
+            PORT="$2"
+            shift 2
+            ;;
+        --build-cpp)
+            BUILD_CPP=true
+            shift
+            ;;
+        *)
+            PORT="$1"
+            shift
+            ;;
+    esac
+done
 
 # 顏色
 GREEN='\033[0;32m'
@@ -40,6 +59,14 @@ echo -e "${GREEN}[1/3]${NC} Building server..."
 cd "$PROJECT_ROOT/server"
 cargo build --release 2>&1 | grep -E "Compiling|Finished" || true
 cd "$PROJECT_ROOT"
+
+# 可選：編譯 C++ client
+if [ "$BUILD_CPP" = true ]; then
+    echo -e "${GREEN}[1.5/3]${NC} Building C++ client..."
+    cd "$PROJECT_ROOT/clients/cpp_cli"
+    make -s 2>&1 || echo "C++ client build failed (optional)"
+    cd "$PROJECT_ROOT"
+fi
 
 # Start Server
 echo -e "${GREEN}[2/3]${NC} Starting server..."

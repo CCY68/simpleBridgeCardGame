@@ -11,6 +11,8 @@
 #   --humans N       Number of human players (default: 1, max: 4)
 #   --seed SEED      Random seed for dealing (default: random)
 #   --no-build       Skip cargo build
+#   --cpp            Use C++ client for human player
+#   --gui            Use Python GUI client for human player
 #   --help           Show this help
 #
 
@@ -21,6 +23,8 @@ PORT=8888
 HUMANS=1
 SEED=""
 SKIP_BUILD=false
+USE_CPP=false
+USE_GUI=false
 SERVER_PID=""
 CLIENT_PIDS=()
 
@@ -44,7 +48,7 @@ log_error() {
 }
 
 show_help() {
-    head -17 "$0" | tail -14
+    head -19 "$0" | tail -16
     exit 0
 }
 
@@ -66,7 +70,9 @@ cleanup() {
     # 確保清理乾淨
     pkill -f "card_arena_server" 2>/dev/null || true
     pkill -f "human_cli/app.py" 2>/dev/null || true
+    pkill -f "human_gui/app.py" 2>/dev/null || true
     pkill -f "ai_cli/app.py" 2>/dev/null || true
+    pkill -f "cpp_cli/client" 2>/dev/null || true
 
     log_info "Cleanup complete."
 }
@@ -92,6 +98,14 @@ while [[ $# -gt 0 ]]; do
             SKIP_BUILD=true
             shift
             ;;
+        --cpp)
+            USE_CPP=true
+            shift
+            ;;
+        --gui)
+            USE_GUI=true
+            shift
+            ;;
         --help)
             show_help
             ;;
@@ -101,6 +115,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# 檢查衝突選項
+if [ "$USE_CPP" = true ] && [ "$USE_GUI" = true ]; then
+    log_error "Cannot use both --cpp and --gui"
+    exit 1
+fi
 
 # 驗證參數
 if [ "$HUMANS" -lt 1 ] || [ "$HUMANS" -gt 4 ]; then
@@ -114,6 +134,14 @@ AI_COUNT=$((4 - HUMANS))
 cd "$(dirname "$0")/.."
 PROJECT_ROOT=$(pwd)
 
+# 決定 client 類型顯示
+CLIENT_TYPE="Python CLI"
+if [ "$USE_CPP" = true ]; then
+    CLIENT_TYPE="C++ CLI"
+elif [ "$USE_GUI" = true ]; then
+    CLIENT_TYPE="Python GUI"
+fi
+
 echo ""
 echo "=========================================="
 echo -e "${BLUE}   CardArena Local Demo${NC}"
@@ -121,6 +149,7 @@ echo "=========================================="
 echo "Port:    $PORT"
 echo "Humans:  $HUMANS"
 echo "AIs:     $AI_COUNT"
+echo "Client:  $CLIENT_TYPE"
 [ -n "$SEED" ] && echo "Seed:    $SEED"
 echo "=========================================="
 echo ""
@@ -131,6 +160,14 @@ if [ "$SKIP_BUILD" = false ]; then
     cd "$PROJECT_ROOT/server"
     cargo build --release 2>&1 | tail -3
     cd "$PROJECT_ROOT"
+
+    # 如果使用 C++ client，也需要編譯
+    if [ "$USE_CPP" = true ]; then
+        log_info "Building C++ client..."
+        cd "$PROJECT_ROOT/clients/cpp_cli"
+        make -s 2>&1 || { log_error "C++ client build failed!"; exit 1; }
+        cd "$PROJECT_ROOT"
+    fi
 fi
 
 # Step 2: Start Server
@@ -163,26 +200,47 @@ for i in $(seq 1 $AI_COUNT); do
     sleep 0.3
 done
 
-# Step 4: Start Human CLI Client(s)
+# Step 4: Start Human Client(s)
 if [ "$HUMANS" -gt 0 ]; then
-    log_info "Starting Human CLI client..."
+    log_info "Starting Human $CLIENT_TYPE client..."
     echo ""
     echo -e "${YELLOW}======================================${NC}"
     echo -e "${YELLOW}  Human Client - Interactive Mode${NC}"
+    echo -e "${YELLOW}  Type: $CLIENT_TYPE${NC}"
     echo -e "${YELLOW}======================================${NC}"
     echo ""
 
     # 第一個 human 在前景執行
-    python3 "$PROJECT_ROOT/clients/human_cli/app.py" \
-        --host 127.0.0.1 \
-        --port "$PORT" \
-        --name "Player_1"
+    if [ "$USE_CPP" = true ]; then
+        # C++ client (透過 stdin 傳入 nickname)
+        cd "$PROJECT_ROOT/clients/cpp_cli"
+        echo "Player_1" | ./client
+        cd "$PROJECT_ROOT"
+    elif [ "$USE_GUI" = true ]; then
+        # Python GUI client
+        python3 "$PROJECT_ROOT/clients/human_gui/app.py" \
+            --host 127.0.0.1 \
+            --port "$PORT" \
+            --name "Player_1"
+    else
+        # Python CLI client (default)
+        python3 "$PROJECT_ROOT/clients/human_cli/app.py" \
+            --host 127.0.0.1 \
+            --port "$PORT" \
+            --name "Player_1"
+    fi
 
     # 如果有多個 human，其他的需要額外終端
     if [ "$HUMANS" -gt 1 ]; then
         log_warn "For multiple human players, please open additional terminals and run:"
         for i in $(seq 2 $HUMANS); do
-            echo "  python3 clients/human_cli/app.py --host 127.0.0.1 --port $PORT --name Player_$i"
+            if [ "$USE_CPP" = true ]; then
+                echo "  cd clients/cpp_cli && echo Player_$i | ./client"
+            elif [ "$USE_GUI" = true ]; then
+                echo "  python3 clients/human_gui/app.py --host 127.0.0.1 --port $PORT --name Player_$i"
+            else
+                echo "  python3 clients/human_cli/app.py --host 127.0.0.1 --port $PORT --name Player_$i"
+            fi
         done
     fi
 fi
