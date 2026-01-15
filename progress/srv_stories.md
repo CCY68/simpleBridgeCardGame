@@ -25,9 +25,9 @@
 |------|-------|------|-------------|------|
 | EPIC 1 - TCP Core | 5 | 5 | 0 | 0 |
 | EPIC 2 - Lobby | 3 | 3 | 0 | 0 |
-| EPIC 3 - Game Engine | 5 | 5 | 0 | 0 |
+| EPIC 3 - Game Engine | 6 | 6 | 0 | 0 |
 | EPIC 4 - UDP Heartbeat (Server) | 2 | 2 | 0 | 0 |
-| **Total** | **15** | **15** | **0** | **0** |
+| **Total** | **16** | **16** | **0** | **0** |
 
 ---
 
@@ -216,6 +216,19 @@
 - [x] 判定 winner team
 - [x] Broadcast GAME_OVER 含 history
 - [x] 遊戲狀態管理 (GamePhase enum)
+
+---
+
+### S3.6 Verify NoKing / No Trump Rule `[P0]` `DONE`
+
+**檔案**: `server/src/game/engine.rs`
+**驗收指令**: Unit test 確認只有同花色能贏，且無王牌邏輯
+
+**DoD**:
+- [x] 確認 Trick winner 判定邏輯僅依賴 Lead Suit
+- [x] 確認無任何 Trump Suit 設定
+- [x] 確認 Deck 為標準 52 張 (A-K)
+- [x] 更新 `PROJECT.md` 規則說明
 
 ---
 

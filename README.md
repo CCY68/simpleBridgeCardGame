@@ -5,9 +5,10 @@
 
 CardArena 是一個在 **LAN 環境**中運作的回合制紙牌對戰網路應用：
 - **Host Node（Server）**：負責 lobby、配桌、發牌、回合、驗證出牌、計分（權威狀態機）
-- **Clients（Python）**：
-  - Human client：真人加入、輸入動作、顯示狀態
-  - AI client：透過 Gemini LLM API 決策（含 rule-based fallback）
+- **Clients（Python / C++）**：
+  - Human client (Python)：真人加入、輸入動作、顯示狀態
+  - AI client (Python)：透過 Gemini LLM API 決策（含 rule-based fallback）
+  - C++ Client：使用 `sys/socket.h` 實作的 CLI/GUI client
 - **TCP**：遊戲控制與狀態同步（NDJSON）
 - **UDP**：heartbeat（RTT / loss rate 展示，非關鍵狀態）
 
@@ -82,8 +83,11 @@ CardArena 是一個在 **LAN 環境**中運作的回合制紙牌對戰網路應�
 ### Clients
 
 * Python
-* `socket`：TCP 直連（human / ai）
-* AI client：Gemini API 呼叫 + fallback
+  * `socket`：TCP 直連（human / ai）
+  * AI client：Gemini API 呼叫 + fallback
+* C++
+  * `sys/socket.h`：POSIX socket 直連
+  * Standard Library (`iostream`, `string`, `thread`)
 
 ---
 
@@ -127,6 +131,7 @@ CardArena 是一個在 **LAN 環境**中運作的回合制紙牌對戰網路應�
 ├─ clients/
 │  ├─ human_gui/                # Python (Tkinter GUI)
 │  ├─ ai_cli/                   # Python (Gemini + fallback)
+│  ├─ cpp_cli/                  # C++ (POSIX socket)
 │  └─ common/                   # codec, message models
 ├─ progress/
 │  ├─ stories.md

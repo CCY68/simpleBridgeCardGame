@@ -61,11 +61,21 @@ class CardRenderer:
         color = CardRenderer.SUIT_COLORS.get(suit, 'black')
         symbol = CardRenderer.SUIT_Symbols.get(suit, '?')
         
+        # Rank (Top-Left)
         canvas.create_text(
             x + 5, y + 5,
-            text=f"{rank}\n{symbol}",
+            text=rank,
             fill=color,
             font=("Arial", 12, "bold"),
+            anchor="nw",
+            tags=tag
+        )
+        # Small Suit (Below Rank)
+        canvas.create_text(
+            x + 5, y + 20,
+            text=symbol,
+            fill=color,
+            font=("Arial", 12),
             anchor="nw",
             tags=tag
         )
@@ -81,11 +91,22 @@ class CardRenderer:
         )
 
         # Draw Corner Rank/Suit (Bottom-Right) - Inverted
+        # Note: Tkinter text rotation is complex, so we draw upright but in the corner.
+        # Rank (Bottom-Right)
         canvas.create_text(
             x + w - 5, y + h - 5,
-            text=f"{rank}\n{symbol}",
+            text=rank,
             fill=color,
             font=("Arial", 12, "bold"),
+            anchor="se",
+            tags=tag
+        )
+        # Small Suit (Above Rank)
+        canvas.create_text(
+            x + w - 5, y + h - 20,
+            text=symbol,
+            fill=color,
+            font=("Arial", 12),
             anchor="se",
             tags=tag
         )

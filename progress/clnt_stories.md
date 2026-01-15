@@ -129,6 +129,45 @@
 
 ---
 
+## EPIC 8 - C++ Client (POSIX Socket)
+
+### S8.1 C++ Scaffold & Makefile `[P1]` `DONE` `@Gemini`
+**依賴**: S0.1
+**檔案**: `clients/cpp_cli/Makefile`
+**DoD**:
+- [x] 專案目錄結構 `clients/cpp_cli/`
+- [x] Makefile 支援 `make clean`, `make all`
+- [x] 支援 Linux (`g++`) 環境
+
+### S8.2 TCP Connection & Threading `[P1]` `DONE` `@Gemini`
+**依賴**: S8.1
+**檔案**: `clients/cpp_cli/net/connection.cpp`
+**DoD**:
+- [x] 使用條件編譯處理 `sys/socket.h` (Linux) 與 `winsock2.h` (Windows)
+- [x] Windows 環境下正確呼叫 `WSAStartup` / `WSACleanup`
+- [x] 實作 Reader Thread 處理 `recv()`
+- [x] 主執行緒處理 `cin` 輸入
+- [x] 處理 `Ctrl+C` graceful shutdown
+
+### S8.3 NDJSON Protocol & Game Logic `[P1]` `TODO` `@Gemini`
+**依賴**: S8.2
+**檔案**: `clients/cpp_cli/game/protocol.cpp`
+**DoD**:
+- [ ] 實作 NDJSON framing (`\n` 分隔)
+- [ ] JSON 序列化/反序列化 (建議使用 `nlohmann/json` 或輕量級 parser)
+- [ ] 處理 `HELLO`, `DEAL`, `YOUR_TURN`, `PLAY_RESULT`, `GAME_OVER`
+- [ ] CLI 顯示卡牌與遊戲狀態
+
+### S8.4 UDP Heartbeat (C++) `[P2]` `TODO` `@Gemini`
+**依賴**: S8.2
+**檔案**: `clients/cpp_cli/net/heartbeat.cpp`
+**DoD**:
+- [ ] 建立 UDP socket (`SOCK_DGRAM`)
+- [ ] 實作 Ping Loop (1s 間隔)
+- [ ] 統計與顯示 RTT / Loss Rate
+
+---
+
 ## Client Progress Summary
 
 | EPIC | Total | Done | In Progress | TODO |
@@ -136,7 +175,8 @@
 | EPIC 4 - UDP Heartbeat | 1 | 1 | 0 | 0 |
 | EPIC 5 - Clients (Core) | 4 | 4 | 0 | 0 |
 | EPIC 7 - GUI Client | 4 | 4 | 0 | 0 |
-| **Total** | **9** | **9** | **0** | **0** |
+| EPIC 8 - C++ Client | 4 | 2 | 0 | 2 |
+| **Total** | **13** | **11** | **0** | **2** |
 
 ---
 

@@ -20,6 +20,8 @@
 
 - 固定 4 人牌局（n 真人 + 4-n AI，n ∈ {1..4}）
 - 回合制（turn-based）簡化紙牌規則（Trick Duel）
+  - **NoKing / No Trump Rule**: 只有與領牌（Leading Card）同花色的牌能贏得 Trick，無王牌（Trump）設定。
+  - 標準撲克牌 52 張 (A-K)，每人 13 張。
 - TCP：遊戲協議（NDJSON）
 - UDP：heartbeat（RTT/loss demo；非關鍵狀態）
 
@@ -136,7 +138,14 @@
 * parse response（must be JSON-like）
 * fallback：timeout/invalid/illegal → rule-based move
 
-4.`clients/common/heartbeat.py`
+4.`clients/cpp_cli` (Managed by @Gemini)
+* **Core**: `sys/socket.h` (Linux) and `winsock2.h` (Windows) abstraction.
+* **Compatibility Layer**: Simple `#ifdef _WIN32` wrapper for socket initialization (`WSAStartup`).
+* **Threading**: `std::thread` (Cross-platform since C++11).
+* **UI**: Text-based interface (CLI) with `iostream`.
+* **JSON**: Minimal JSON parser/builder (or `nlohmann/json`).
+
+5.`clients/common/heartbeat.py`
 * UDP ping loop
 * CLI/GUI 顯示 RTT/loss
 
