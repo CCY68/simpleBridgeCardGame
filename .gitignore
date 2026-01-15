@@ -3,6 +3,14 @@
 # ================================
 
 # ----------------
+# C++ Client
+# ----------------
+clients/cpp_cli/obj/
+clients/cpp_cli/client
+clients/cpp_cli/client.exe
+clients/cpp_cli/*.d
+
+# ----------------
 # Rust
 # ----------------
 /server/target/
@@ -59,6 +67,7 @@ Desktop.ini
 # Logs
 # ----------------
 *.log
+*_log.txt
 logs/
 
 # ----------------
