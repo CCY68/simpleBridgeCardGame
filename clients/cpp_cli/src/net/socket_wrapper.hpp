@@ -29,7 +29,16 @@
     #define SOCKET_ERROR -1
 #endif
 
+#include <chrono>
+
 namespace net {
+
+    // Helper to get current timestamp in milliseconds
+    inline uint64_t get_time_ms() {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()
+        ).count();
+    }
 
     // Initialize Winsock on Windows, do nothing on Linux
     inline bool initialize() {

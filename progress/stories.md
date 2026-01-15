@@ -505,16 +505,18 @@
 - [x] 支援輸入手牌索引 (Index) 進行出牌，並包含合法性檢查
 - [x] 整合 UI 渲染邏輯 (文字介面)
 
-### S8.4 UDP Heartbeat (C++) `[P2]` `TODO` `@Gemini`
+### S8.4 UDP Heartbeat (C++) `[P2]` `DONE` `@Gemini`
 
 **依賴**: S8.2
-**檔案**: `clients/cpp_cli/heartbeat.cpp`
+**檔案**: `clients/cpp_cli/net/udp_heartbeat.cpp`
 **驗收指令**: Server 收到 C++ client 的 UDP ping
 
 **DoD**:
-- [ ] 建立 UDP socket
-- [ ] 獨立 thread 發送 HB_PING
-- [ ] 計算 RTT
+- [x] 建立 UDP socket (SOCK_DGRAM)
+- [x] 獨立執行緒定期發送 HB_PING (1s 間隔)
+- [x] 解析 HB_PONG 並計算 RTT
+- [x] 根據 seq 與收到的封包數計算 Loss Rate
+- [x] 在 CLI 介面即時顯示網路狀態 (RTT/Loss)
 
 ---
 
@@ -532,5 +534,5 @@
 | EPIC 5 - Clients (Core) | DONE | Python CLI/AI clients 完成 |
 | EPIC 6 - Demo & QA | DONE | Demo scripts 完成，邊界處理完成 |
 | EPIC 7 - GUI Client | DONE | Tkinter GUI 完成 |
-| EPIC 8 - C++ Client | IN_PROGRESS | S8.1-S8.2 完成，S8.3-S8.4 進行中 |
+| EPIC 8 - C++ Client | DONE | C++ CLI Client (含 Heartbeat) 完成 |
 | BONUS | TODO | 依需求再排定 |

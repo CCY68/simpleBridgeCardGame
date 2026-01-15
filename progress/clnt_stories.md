@@ -149,22 +149,22 @@
 - [x] 主執行緒處理 `cin` 輸入
 - [x] 處理 `Ctrl+C` graceful shutdown
 
-### S8.3 NDJSON Protocol & Game Logic `[P1]` `TODO` `@Gemini`
+### S8.3 NDJSON Protocol & Game Logic `[P1]` `DONE` `@Gemini`
 **依賴**: S8.2
-**檔案**: `clients/cpp_cli/game/protocol.cpp`
+**檔案**: `clients/cpp_cli/game/game_manager.cpp`
 **DoD**:
-- [ ] 實作 NDJSON framing (`\n` 分隔)
-- [ ] JSON 序列化/反序列化 (建議使用 `nlohmann/json` 或輕量級 parser)
-- [ ] 處理 `HELLO`, `DEAL`, `YOUR_TURN`, `PLAY_RESULT`, `GAME_OVER`
-- [ ] CLI 顯示卡牌與遊戲狀態
+- [x] 實作 NDJSON framing (`\n` 分隔)
+- [x] 實作輕量級 JSON parser (json_helper.hpp) 避免外部依賴
+- [x] 處理 `HELLO`, `DEAL`, `YOUR_TURN`, `PLAY_RESULT`, `GAME_OVER`
+- [x] CLI 顯示卡牌與遊戲狀態，支援輸入 Index 出牌
 
-### S8.4 UDP Heartbeat (C++) `[P2]` `TODO` `@Gemini`
+### S8.4 UDP Heartbeat (C++) `[P2]` `DONE` `@Gemini`
 **依賴**: S8.2
 **檔案**: `clients/cpp_cli/net/heartbeat.cpp`
 **DoD**:
-- [ ] 建立 UDP socket (`SOCK_DGRAM`)
-- [ ] 實作 Ping Loop (1s 間隔)
-- [ ] 統計與顯示 RTT / Loss Rate
+- [x] 建立 UDP socket (`SOCK_DGRAM`)
+- [x] 實作 Ping Loop (1s 間隔)
+- [x] 統計與顯示 RTT / Loss Rate (整合至 CLI UI)
 
 ---
 
@@ -175,8 +175,8 @@
 | EPIC 4 - UDP Heartbeat | 1 | 1 | 0 | 0 |
 | EPIC 5 - Clients (Core) | 4 | 4 | 0 | 0 |
 | EPIC 7 - GUI Client | 4 | 4 | 0 | 0 |
-| EPIC 8 - C++ Client | 4 | 2 | 0 | 2 |
-| **Total** | **13** | **11** | **0** | **2** |
+| EPIC 8 - C++ Client | 4 | 4 | 0 | 0 |
+| **Total** | **13** | **13** | **0** | **0** |
 
 ---
 
