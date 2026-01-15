@@ -1,10 +1,12 @@
+mod ai;
 mod game;
 mod lobby;
 mod net;
 mod protocol;
 
-use game::{GameEngine, PlayError, PlayResult, TrickResolution};
-use lobby::{HandshakeResult, RoomManager, RoomState, process_hello};
+use ai::{AiStrategy, SmartStrategy};
+use game::{CardData, GameEngine, PlayError, PlayResult, TrickResolution};
+use lobby::{HandshakeResult, Room, RoomManager, RoomState, process_hello};
 use log::{error, info, warn};
 use net::{
     ClientSender, ConnectionId, GameEvent, create_event_channel, create_heartbeat_tracker,
@@ -140,14 +142,20 @@ fn game_loop(event_rx: net::EventReceiver, config: ServerConfig) {
 
             GameEvent::Disconnected { conn_id } => {
                 state.clients.remove(&conn_id);
-                state.conn_to_room.remove(&conn_id);
 
-                if let Some(player) = state.room_manager.handle_disconnect(conn_id) {
+                // 取得該連線所在的房間
+                let room_id = state.conn_to_room.remove(&conn_id);
+
+                if let Some(room_id) = room_id {
+                    // 處理 Bridge Mode 遊戲重啟
+                    handle_bridge_mode_disconnect(conn_id, &room_id, &mut state);
+                } else if let Some(player) = state.room_manager.handle_disconnect(conn_id) {
                     info!(
                         "[GAME] Player '{}' ({}) disconnected from room",
                         player.nickname, player.player_id
                     );
                 }
+
                 info!(
                     "[GAME] Client #{} disconnected (total: {})",
                     conn_id,
@@ -309,25 +317,19 @@ fn start_game(
 
     let mut engine = GameEngine::new(seed, players);
 
-    // 發牌
+    // 發牌 (只發給真人玩家)
     let deal_messages = engine.deal();
     for (conn_id, msg) in deal_messages {
-        send_to(&state.clients, conn_id, &msg);
-        info!("[ENGINE] Sent DEAL to connection #{}", conn_id);
-    }
-
-    // 發送 YOUR_TURN 給第一位玩家
-    if let Some(current_idx) = engine.current_player_idx() {
-        let your_turn_msg = engine.your_turn_message(current_idx);
-        let current_conn_id = engine.players[current_idx].conn_id;
-        send_to(&state.clients, current_conn_id, &your_turn_msg);
-        info!(
-            "[ENGINE] Sent YOUR_TURN to {} (trick {})",
-            engine.players[current_idx].player_id, engine.current_trick
-        );
+        if !Room::is_virtual_conn(conn_id) {
+            send_to(&state.clients, conn_id, &msg);
+            info!("[ENGINE] Sent DEAL to connection #{}", conn_id);
+        }
     }
 
     state.games.insert(room_id.to_string(), engine);
+
+    // 處理回合 (如果第一位是 AI，自動出牌；否則發 YOUR_TURN 給 Human)
+    process_ai_turns(room_id, state);
 }
 
 fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
@@ -398,38 +400,28 @@ fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
     let play_result = engine.play_card(player_idx, card_data);
 
     match play_result {
-        PlayResult::Continue(broadcast_msg, next_idx) => {
-            // 廣播出牌
-            for &cid in &engine.all_conn_ids() {
-                send_to(&state.clients, cid, &broadcast_msg);
-            }
+        PlayResult::Continue(broadcast_msg, _next_idx) => {
+            // 廣播出牌給真人玩家
+            broadcast_to_humans(&room_id, &broadcast_msg, state);
 
-            // 發送 YOUR_TURN 給下一位玩家
-            let your_turn_msg = engine.your_turn_message(next_idx);
-            let next_conn_id = engine.players[next_idx].conn_id;
-            send_to(&state.clients, next_conn_id, &your_turn_msg);
-            info!(
-                "[ENGINE] YOUR_TURN -> {} (trick {})",
-                engine.players[next_idx].player_id, engine.current_trick
-            );
+            // 處理下一位玩家回合 (可能是 AI 自動出牌)
+            process_ai_turns(&room_id, state);
         }
 
         PlayResult::TrickComplete(broadcast_msg) => {
             // 廣播出牌
-            for &cid in &engine.all_conn_ids() {
-                send_to(&state.clients, cid, &broadcast_msg);
-            }
+            broadcast_to_humans(&room_id, &broadcast_msg, state);
 
             // 結算 trick
+            let engine = state.games.get_mut(&room_id).unwrap();
             let resolution = engine.resolve_trick();
 
             match resolution {
                 TrickResolution::NextTrick(result_msg, next_idx) => {
                     // 廣播 TRICK_RESULT
-                    for &cid in &engine.all_conn_ids() {
-                        send_to(&state.clients, cid, &result_msg);
-                    }
+                    broadcast_to_humans(&room_id, &result_msg, state);
 
+                    let engine = state.games.get(&room_id).unwrap();
                     info!(
                         "[ENGINE] Trick {} complete, winner: {}, score: HUMAN={} AI={}",
                         engine.current_trick - 1,
@@ -438,27 +430,18 @@ fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
                         engine.score.ai
                     );
 
-                    // 發送 YOUR_TURN 給下一 trick 的第一位 (上一 trick 贏家)
-                    let your_turn_msg = engine.your_turn_message(next_idx);
-                    let next_conn_id = engine.players[next_idx].conn_id;
-                    send_to(&state.clients, next_conn_id, &your_turn_msg);
-                    info!(
-                        "[ENGINE] YOUR_TURN -> {} (trick {})",
-                        engine.players[next_idx].player_id, engine.current_trick
-                    );
+                    // 處理下一位玩家回合 (可能是 AI 自動出牌)
+                    process_ai_turns(&room_id, state);
                 }
 
                 TrickResolution::GameOver(result_msg) => {
                     // 廣播最後一個 TRICK_RESULT
-                    for &cid in &engine.all_conn_ids() {
-                        send_to(&state.clients, cid, &result_msg);
-                    }
+                    broadcast_to_humans(&room_id, &result_msg, state);
 
                     // 廣播 GAME_OVER
+                    let engine = state.games.get(&room_id).unwrap();
                     let game_over_msg = engine.game_over_message();
-                    for &cid in &engine.all_conn_ids() {
-                        send_to(&state.clients, cid, &game_over_msg);
-                    }
+                    broadcast_to_humans(&room_id, &game_over_msg, state);
 
                     info!(
                         "[ENGINE] Game over! Final score: HUMAN={} AI={}, Winner: {:?}",
@@ -484,6 +467,184 @@ fn send_to(clients: &HashMap<ConnectionId, ClientSender>, conn_id: ConnectionId,
         if sender.send(msg.clone()).is_err() {
             warn!("[GAME] Failed to send to #{}", conn_id);
         }
+    }
+}
+
+/// 檢查並處理 AI 玩家的回合
+/// 如果當前玩家是 AI，自動選擇並出牌，直到輪到 Human 或遊戲結束
+fn process_ai_turns(room_id: &str, state: &mut ServerState) {
+    let strategy = SmartStrategy::default();
+
+    loop {
+        let engine = match state.games.get_mut(room_id) {
+            Some(e) => e,
+            None => return,
+        };
+
+        // 取得當前玩家
+        let current_idx = match engine.current_player_idx() {
+            Some(idx) => idx,
+            None => return, // 遊戲已結束或尚未開始
+        };
+
+        let current_conn_id = engine.players[current_idx].conn_id;
+
+        // 檢查是否為 AI (虛擬連線)
+        if !Room::is_virtual_conn(current_conn_id) {
+            // Human 玩家，發送 YOUR_TURN 並結束 AI 處理迴圈
+            let your_turn_msg = engine.your_turn_message(current_idx);
+            send_to(&state.clients, current_conn_id, &your_turn_msg);
+            info!(
+                "[ENGINE] YOUR_TURN -> {} (trick {})",
+                engine.players[current_idx].player_id, engine.current_trick
+            );
+            return;
+        }
+
+        // AI 玩家，自動出牌
+        let player_id = engine.players[current_idx].player_id.clone();
+        let hand = engine.players[current_idx].hand.clone();
+        let legal_moves = engine.get_legal_moves(current_idx);
+        let table: Vec<(usize, CardData)> = engine.table.clone();
+        let is_leader = table.is_empty();
+
+        // 使用策略選擇牌
+        let chosen_card = strategy.choose_card(&hand, &legal_moves, &table, is_leader);
+        let card_str = chosen_card.to_protocol_string();
+
+        info!(
+            "[AI] {} chooses {} (trick {}, is_leader={})",
+            player_id, card_str, engine.current_trick, is_leader
+        );
+
+        // 執行出牌
+        let play_result = engine.play_card(current_idx, chosen_card);
+
+        match play_result {
+            PlayResult::Continue(broadcast_msg, _next_idx) => {
+                // 廣播出牌給所有真人玩家
+                broadcast_to_humans(room_id, &broadcast_msg, state);
+                // 繼續迴圈處理下一位玩家
+            }
+
+            PlayResult::TrickComplete(broadcast_msg) => {
+                // 廣播出牌
+                broadcast_to_humans(room_id, &broadcast_msg, state);
+
+                // 結算 trick
+                let engine = state.games.get_mut(room_id).unwrap();
+                let resolution = engine.resolve_trick();
+
+                match resolution {
+                    TrickResolution::NextTrick(result_msg, next_idx) => {
+                        // 廣播 TRICK_RESULT
+                        broadcast_to_humans(room_id, &result_msg, state);
+
+                        let engine = state.games.get(room_id).unwrap();
+                        info!(
+                            "[ENGINE] Trick {} complete, winner: {}, score: HUMAN={} AI={}",
+                            engine.current_trick - 1,
+                            engine.players[next_idx].player_id,
+                            engine.score.human,
+                            engine.score.ai
+                        );
+                        // 繼續迴圈處理下一位玩家
+                    }
+
+                    TrickResolution::GameOver(result_msg) => {
+                        // 廣播最後一個 TRICK_RESULT
+                        broadcast_to_humans(room_id, &result_msg, state);
+
+                        // 廣播 GAME_OVER
+                        let engine = state.games.get(room_id).unwrap();
+                        let game_over_msg = engine.game_over_message();
+                        broadcast_to_humans(room_id, &game_over_msg, state);
+
+                        info!(
+                            "[ENGINE] Game over! Final score: HUMAN={} AI={}, Winner: {:?}",
+                            engine.score.human,
+                            engine.score.ai,
+                            if engine.score.human > engine.score.ai {
+                                "HUMAN"
+                            } else {
+                                "AI"
+                            }
+                        );
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// 廣播訊息給房間內的所有真人玩家
+fn broadcast_to_humans(room_id: &str, msg: &ServerMessage, state: &ServerState) {
+    if let Some(engine) = state.games.get(room_id) {
+        for player in &engine.players {
+            if !Room::is_virtual_conn(player.conn_id) {
+                send_to(&state.clients, player.conn_id, msg);
+            }
+        }
+    }
+}
+
+/// 處理 Bridge Mode 下的玩家斷線
+/// 如果遊戲進行中有玩家斷線，重置遊戲等待新玩家
+fn handle_bridge_mode_disconnect(conn_id: ConnectionId, room_id: &str, state: &mut ServerState) {
+    // 取得房間資訊
+    let room = match state.room_manager.get_room_mut(room_id) {
+        Some(r) => r,
+        None => return,
+    };
+
+    let player = room.remove_player(conn_id);
+    let is_bridge_mode = room.bridge_mode;
+    let was_playing = room.state == RoomState::Playing;
+
+    if let Some(ref p) = player {
+        info!(
+            "[GAME] Player '{}' ({}) disconnected from room {}",
+            p.nickname, p.player_id, room_id
+        );
+    }
+
+    // Bridge Mode 且遊戲進行中，需要重置
+    if is_bridge_mode && was_playing {
+        info!("[BRIDGE] Human disconnected during game, resetting room {}", room_id);
+
+        // 移除遊戲引擎
+        state.games.remove(room_id);
+
+        // 重置房間
+        let room = state.room_manager.get_room_mut(room_id).unwrap();
+        let removed_humans = room.reset_for_bridge_mode();
+
+        // 清除被移除 Human 的 conn_to_room 對應
+        for human_conn in &removed_humans {
+            state.conn_to_room.remove(human_conn);
+        }
+
+        // 通知剩餘的 Human (如果有的話)
+        // 注意：斷線的玩家已經不在了，另一個 Human 可能還連線中
+        let wait_msg = room.room_wait_message();
+        for player in &room.players {
+            if !Room::is_virtual_conn(player.conn_id) {
+                // 發送遊戲重置通知
+                let reset_msg = ServerMessage::Error {
+                    code: protocol::ErrorCode::ProtocolError,
+                    message: "Game reset due to player disconnect. Waiting for players...".to_string(),
+                };
+                send_to(&state.clients, player.conn_id, &reset_msg);
+                send_to(&state.clients, player.conn_id, &wait_msg);
+            }
+        }
+
+        info!(
+            "[BRIDGE] Room {} reset, waiting for {} more human(s)",
+            room_id,
+            room.players_needed()
+        );
     }
 }
 

@@ -425,6 +425,48 @@
 
 ---
 
+## EPIC 9 - Bridge Mode (Server-side AI) `@Claude`
+
+> **目標**: Server 內建 2 位 AI 夥伴，等待 2 位人類玩家加入即開始遊戲。
+> 人類中途斷線則遊戲重新開始（Server 不重啟）。
+>
+> **詳細 DoD 請參閱**: `progress/srv_stories.md`
+
+### S9.1 Built-in AI Player Module `[P0]` `TODO` `@Claude`
+
+**依賴**: EPIC 3
+**驗收指令**: Server 啟動時 log 顯示 "AI Partner 1/2 ready"
+
+---
+
+### S9.2 Modified Room Start Rule (2 Humans) `[P0]` `TODO` `@Claude`
+
+**依賴**: S9.1
+**驗收指令**: 2 位人類玩家加入後自動開始遊戲
+
+---
+
+### S9.3 AI Turn Handler (Server-side) `[P0]` `TODO` `@Claude`
+
+**依賴**: S9.2
+**驗收指令**: AI 輪到時自動出牌，無需外部輸入
+
+---
+
+### S9.4 AI Card Strategy (Pluggable) `[P1]` `TODO` `@Claude`
+
+**依賴**: S9.3
+**驗收指令**: AI 使用可插拔策略出牌（待提供詳細規則）
+
+---
+
+### S9.5 Human Disconnect & Game Restart `[P0]` `TODO` `@Claude`
+
+**依賴**: S9.2
+**驗收指令**: 人類玩家斷線後遊戲重啟，Server 不重啟
+
+---
+
 ## BONUS EPIC (Optional)
 
 ### B1 Web client gateway (WebSocket ↔ TCP) `[P3]` `TODO`
@@ -535,4 +577,5 @@
 | EPIC 6 - Demo & QA | DONE | Demo scripts 完成，邊界處理完成 |
 | EPIC 7 - GUI Client | DONE | Tkinter GUI 完成 |
 | EPIC 8 - C++ Client | DONE | C++ CLI Client (含 Heartbeat) 完成 |
+| EPIC 9 - Bridge Mode | TODO | Server 內建 AI，2 Human 開始 |
 | BONUS | TODO | 依需求再排定 |

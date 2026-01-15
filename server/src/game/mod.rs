@@ -1,4 +1,5 @@
 pub mod deck;
 pub mod engine;
 
-pub use engine::{GameEngine, PlayError, PlayResult, TrickResolution};
+pub use deck::{CardData, Rank, Suit};
+pub use engine::{GameEngine, GamePlayer, PlayError, PlayResult, TrickResolution};

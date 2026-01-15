@@ -2,9 +2,9 @@
 
 > Server (Rust) 開發進度追蹤 - 由 Claude Code 維護
 >
-> 最後更新: 2026-01-14
+> 最後更新: 2026-01-16
 >
-> **🎉 開發狀態: 全部完成**
+> **開發狀態: EPIC 9 (Bridge Mode) 完成 ✅**
 
 ---
 
@@ -27,7 +27,8 @@
 | EPIC 2 - Lobby | 3 | 3 | 0 | 0 |
 | EPIC 3 - Game Engine | 6 | 6 | 0 | 0 |
 | EPIC 4 - UDP Heartbeat (Server) | 2 | 2 | 0 | 0 |
-| **Total** | **16** | **16** | **0** | **0** |
+| EPIC 9 - Bridge Mode (Server AI) | 5 | 5 | 0 | 0 |
+| **Total** | **21** | **21** | **0** | **0** |
 
 ---
 
@@ -261,11 +262,138 @@
 
 ---
 
+## EPIC 9 - Bridge Mode (Server-side AI) `DONE`
+
+> **目標**: 將 AI 玩家內建於 Server 端，Server 啟動後自動建立 2 位 AI 夥伴，
+> 等待 2 位人類玩家加入即開始遊戲。人類玩家中途斷線則重新開始遊戲（不重啟 Server）。
+
+### S9.1 Built-in AI Player Module `[P0]` `DONE`
+
+**檔案**: `server/src/ai/mod.rs`, `server/src/ai/player.rs`
+**驗收指令**: Server 啟動時 log 顯示 "AI Partner 1/2 ready"
+
+**DoD**:
+- [x] 建立 `ai` 模組目錄結構
+- [x] 定義 `AiPlayer` struct (player_id, nickname, team)
+- [x] 實作 `AiPlayer::create_partners()` 建構函數
+- [x] Room 建立時自動加入 2 個 AI 玩家 (P3, P4)
+- [x] AI 玩家使用虛擬連線 ID (不佔用 TCP 連線)
+
+---
+
+### S9.2 Modified Room Start Rule (2 Humans) `[P0]` `DONE`
+
+**檔案**: `server/src/lobby/room.rs`, `server/src/main.rs`
+**驗收指令**: 2 位人類玩家加入後自動開始遊戲
+
+**DoD**:
+- [x] 修改 `Room::can_start()` 邏輯：2 Humans + 2 Built-in AI = 開始
+- [x] Bridge Mode 房間建立時預先將 AI 玩家加入 (P3, P4 位置)
+- [x] Human 加入時分配 P1, P2 位置 (insert before AI)
+- [x] `ROOM_WAIT` 訊息顯示正確的等待人數
+- [x] `ROOM_START` 正確顯示 4 位玩家資訊
+
+---
+
+### S9.3 AI Turn Handler (Server-side) `[P0]` `DONE`
+
+**檔案**: `server/src/main.rs`
+**驗收指令**: AI 輪到時自動出牌，無需外部輸入
+
+**DoD**:
+- [x] 在 Game Loop 中偵測輪到 AI 玩家 (via `Room::is_virtual_conn()`)
+- [x] 呼叫 AI 決策模組 (`SmartStrategy`) 取得出牌
+- [x] 自動執行 PLAY 動作 (不經過 TCP)
+- [x] `process_ai_turns()` 函數處理連續 AI 回合
+- [x] `broadcast_to_humans()` 只發送給真人玩家
+
+---
+
+### S9.4 AI Card Strategy (Pluggable) `[P1]` `DONE`
+
+**檔案**: `server/src/ai/strategy.rs`
+**驗收指令**: AI 使用指定策略出牌
+
+**DoD**:
+- [x] 定義 `AiStrategy` trait
+- [x] 實作 `SmartStrategy` (智慧策略)
+- [x] 策略透過 trait object 可擴充
+- [x] Unit test 驗證策略邏輯 (6 tests)
+
+**策略規則** (SmartStrategy):
+```rust
+// ========== 首家 (領牌) ==========
+// 出「最長花色的最小牌」(試探策略)
+//   1. 統計手牌中各花色數量
+//   2. 選擇數量最多的花色 (若平手，依 S > H > D > C 優先)
+//   3. 出該花色中點數最小的牌
+
+// ========== 非首家 (跟牌) ==========
+// 情況 A: 有同花色的牌 (必須跟牌)
+//   1. 找出桌面同花色最大的牌 (highest)
+//   2. 找「大於 highest 至少 3 點」的最小牌
+//   3. 若有 → 出該牌 (嘗試贏取)
+//   4. 若無 → 出同花色最小牌 (放棄本輪)
+//
+// 情況 B: 無同花色的牌 (墊牌)
+//   - 出點數最小的牌 (任意花色)
+
+// ========== 點數對照 ==========
+// 2=2, 3=3, 4=4, 5=5, 6=6, 7=7, 8=8, 9=9, 10=10
+// J=11, Q=12, K=13, A=14
+
+// ========== 範例 ==========
+// 桌面: 7H (highest=7)
+// 手牌: 3H, 9H, QH, 5D
+// 需要: 7+3=10 以上的最小牌
+// 結果: 出 QH (9H 只比 7H 大 2 點，不符合 +3 條件)
+```
+
+---
+
+### S9.5 Human Disconnect & Game Restart `[P0]` `DONE`
+
+**檔案**: `server/src/main.rs`, `server/src/lobby/room.rs`
+**驗收指令**: 人類玩家斷線後遊戲重啟，Server 不重啟
+
+**DoD**:
+- [x] 偵測人類玩家斷線 (TCP disconnect)
+- [x] 若遊戲進行中，立即結束當前遊戲
+- [x] 發送 ERROR 訊息通知其他玩家
+- [x] 重置房間狀態為 `Waiting` (`Room::reset_for_bridge_mode()`)
+- [x] AI 玩家保留，等待新的人類玩家加入
+- [x] 記錄斷線原因到 log
+
+---
+
+## 新增檔案結構
+
+```
+server/src/
+├── ai/                      # 新增: AI 模組
+│   ├── mod.rs               # AI 模組入口
+│   ├── player.rs            # AiPlayer 定義
+│   ├── turn_handler.rs      # AI 出牌處理
+│   └── strategy.rs          # 出牌策略 (trait + 實作)
+├── main.rs                  # 修改: 整合 AI 模組
+├── lobby/
+│   └── room.rs              # 修改: 2 Human 開始規則
+└── protocol/
+    └── messages.rs          # 修改: 新增 GAME_ABORT 訊息
+```
+
+---
+
 ## File Structure
 
 ```
 server/src/
 ├── main.rs              # Accept loop + Game loop + UDP Heartbeat 啟動
+├── ai/                  # [EPIC 9] 內建 AI 模組
+│   ├── mod.rs           # AI 模組入口
+│   ├── player.rs        # AiPlayer 定義
+│   ├── turn_handler.rs  # AI 出牌處理
+│   └── strategy.rs      # 出牌策略 (trait + 實作)
 ├── net/
 │   ├── mod.rs
 │   ├── listener.rs      # socket2 TCP listener
@@ -275,12 +403,12 @@ server/src/
 │   └── heartbeat.rs     # UDP heartbeat server (HB_PING/HB_PONG)
 ├── protocol/
 │   ├── mod.rs
-│   ├── messages.rs      # 完整 message types + HeartbeatPing/Pong
+│   ├── messages.rs      # 完整 message types + HeartbeatPing/Pong + GAME_ABORT
 │   └── codec.rs         # NDJSON 編解碼
 ├── lobby/
 │   ├── mod.rs
 │   ├── handshake.rs     # HELLO/WELCOME + AI auth
-│   └── room.rs          # RoomManager, 4人開始
+│   └── room.rs          # RoomManager, 2 Human 開始 (Bridge Mode)
 └── game/
     ├── mod.rs
     ├── deck.rs          # 52張牌, Fisher-Yates shuffle
@@ -293,7 +421,7 @@ server/src/
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Unit Tests | 37 | ✅ All Passed |
+| Unit Tests | 48 | ✅ All Passed |
 | Integration | Manual | ✅ Verified |
 
 ---
@@ -324,6 +452,15 @@ echo '{"type":"HELLO","role":"HUMAN","nickname":"TestUser","proto":1}' | nc -w1 
 ---
 
 ## Changelog
+
+### 2026-01-16
+- **完成 EPIC 9 (S9.1 ~ S9.5) - Bridge Mode (Server-side AI)**
+  - ai/mod.rs, ai/player.rs: AiPlayer 定義
+  - ai/strategy.rs: SmartStrategy 實作 (首家/跟牌策略)
+  - lobby/room.rs: Bridge Mode 房間管理 (2 Human + 2 AI)
+  - main.rs: process_ai_turns(), broadcast_to_humans()
+  - main.rs: handle_bridge_mode_disconnect() 斷線重置
+- 測試數量: 37 → 48
 
 ### 2026-01-14 (Final)
 - **Server 端開發全部完成**
