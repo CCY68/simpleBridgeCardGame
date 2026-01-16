@@ -577,6 +577,32 @@
 
 ---
 
+## EPIC 10 - Remote Admin Tools `@Claude`
+
+> Server 遠端管理介面，透過獨立 TCP Port (8890) 提供管理功能。
+> 詳細 Stories 請參考 `progress/srv_stories.md`
+
+**Stories**:
+- S10.1 Admin Server Architecture
+- S10.2 Message Logging & Viewing
+- S10.3 Game Reset Command
+- S10.4 Kick Player Command
+
+---
+
+## EPIC 11 - Admin GUI Tool `@Claude`
+
+> Python/Tkinter 圖形化管理工具，連線至 Server Admin Port。
+> 詳細 Stories 請參考 `progress/clnt_stories.md`
+
+**Stories**:
+- S11.1 Admin GUI Scaffold & Connection
+- S11.2 Dashboard & Status View
+- S11.3 Message Log Viewer
+- S11.4 Admin Actions (Reset & Kick)
+
+---
+
 ## Progress Summary (PM QA)
 
 > Client 端與 Server 端的開發細節請參考 `progress/clnt_stories.md` 與 `progress/srv_stories.md`。
@@ -592,5 +618,7 @@
 | EPIC 6 - Demo & QA | DONE | Demo scripts 完成，邊界處理完成 |
 | EPIC 7 - GUI Client | DONE | Tkinter GUI 完成 |
 | EPIC 8 - C++ Client | DONE | C++ CLI Client (含 Heartbeat) 完成 |
-| EPIC 9 - Bridge Mode | TODO | Server 內建 AI，2 Human 開始 |
+| EPIC 9 - Bridge Mode | DONE | Server 內建 AI，2 Human 開始 |
+| EPIC 10 - Remote Admin | TODO | Server 遠端管理介面 (TCP 8890) |
+| EPIC 11 - Admin GUI | TODO | Python/Tkinter 管理工具 |
 | BONUS | TODO | 依需求再排定 |

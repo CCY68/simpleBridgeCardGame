@@ -180,6 +180,71 @@
 
 ---
 
+## EPIC 11 - Admin GUI Tool (Python/Tkinter)
+
+> **目標**: 提供圖形化的遠端管理介面，連線至 Server 的 Admin Port (8890)，
+> 方便管理員監控伺服器狀態、查看訊息記錄、重設遊戲、及踢除玩家。
+
+### S11.1 Admin GUI Scaffold & Connection `[P0]` `TODO` `@Claude`
+
+**依賴**: S10.1 (Server Admin)
+**檔案**: `clients/admin_gui/app.py`, `clients/admin_gui/connection.py`
+**驗收指令**: 能連線並通過認證
+
+**DoD**:
+- [ ] 建立 `clients/admin_gui/` 目錄結構
+- [ ] 實作 Tkinter 主視窗 (AdminApp)
+- [ ] Login 介面: IP, Port, Auth Token
+- [ ] TCP 連線與認證 (`AUTH <token>`)
+- [ ] 連線狀態顯示 (Connected/Disconnected)
+
+---
+
+### S11.2 Dashboard & Status View `[P1]` `TODO` `@Claude`
+
+**依賴**: S11.1
+**檔案**: `clients/admin_gui/views/dashboard.py`
+**驗收指令**: 顯示伺服器狀態、房間列表、玩家列表
+
+**DoD**:
+- [ ] Dashboard 主頁面佈局
+- [ ] 伺服器狀態卡片 (uptime, connections)
+- [ ] 房間列表 (TreeView) - ID, 狀態, 玩家數
+- [ ] 玩家列表 (TreeView) - ID, 暱稱, 房間, 角色
+- [ ] 定時自動更新 (5秒) 或手動重新整理
+
+---
+
+### S11.3 Message Log Viewer `[P1]` `TODO` `@Claude`
+
+**依賴**: S11.1, S10.2
+**檔案**: `clients/admin_gui/views/logs.py`
+**驗收指令**: 顯示伺服器訊息記錄
+
+**DoD**:
+- [ ] 訊息記錄面板 (ScrolledText)
+- [ ] 載入最近 N 條訊息 (`LOGS` 指令)
+- [ ] 按事件類型篩選 (下拉選單)
+- [ ] 搜尋功能 (關鍵字過濾)
+- [ ] 自動捲動到最新訊息
+
+---
+
+### S11.4 Admin Actions (Reset & Kick) `[P0]` `TODO` `@Claude`
+
+**依賴**: S11.2, S10.3, S10.4
+**檔案**: `clients/admin_gui/views/actions.py`
+**驗收指令**: 能執行 RESET 和 KICK 操作
+
+**DoD**:
+- [ ] 重設遊戲按鈕 (選擇房間 -> 確認對話框 -> RESET)
+- [ ] 踢除玩家按鈕 (選擇玩家 -> 確認對話框 -> KICK)
+- [ ] 操作結果顯示 (成功/失敗訊息)
+- [ ] 右鍵選單支援 (在列表上右鍵執行操作)
+- [ ] 操作後自動更新狀態
+
+---
+
 ## Client Progress Summary
 
 | EPIC | Total | Done | In Progress | TODO |
@@ -189,7 +254,8 @@
 | EPIC 7 - GUI Client | 4 | 4 | 0 | 0 |
 | EPIC 8 - C++ Client | 4 | 4 | 0 | 0 |
 | EPIC 9 - AI Strategy | 1 | 1 | 0 | 0 |
-| **Total** | **14** | **14** | **0** | **0** |
+| EPIC 11 - Admin GUI | 4 | 0 | 0 | 4 |
+| **Total** | **18** | **14** | **0** | **4** |
 
 ---
 

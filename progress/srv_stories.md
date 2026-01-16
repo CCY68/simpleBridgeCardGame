@@ -4,7 +4,7 @@
 >
 > 最後更新: 2026-01-16
 >
-> **開發狀態: EPIC 9 (Bridge Mode) 完成 ✅**
+> **開發狀態: EPIC 10 (Remote Admin) 進行中**
 
 ---
 
@@ -28,7 +28,8 @@
 | EPIC 3 - Game Engine | 6 | 6 | 0 | 0 |
 | EPIC 4 - UDP Heartbeat (Server) | 2 | 2 | 0 | 0 |
 | EPIC 9 - Bridge Mode (Server AI) | 5 | 5 | 0 | 0 |
-| **Total** | **21** | **21** | **0** | **0** |
+| EPIC 10 - Remote Admin Tools | 4 | 0 | 0 | 4 |
+| **Total** | **25** | **21** | **0** | **4** |
 
 ---
 
@@ -366,20 +367,122 @@
 
 ---
 
+## EPIC 10 - Remote Admin Tools `TODO`
+
+> **目標**: 提供獨立的 TCP 管理介面，允許管理員遠端監控伺服器狀態、
+> 查看遊戲訊息、重設遊戲、以及剔除玩家。
+
+### S10.1 Admin Server Architecture `[P0]` `TODO`
+
+**檔案**: `server/src/admin/mod.rs`, `server/src/admin/server.rs`
+**驗收指令**: `nc localhost 8890` 連線後輸入 `HELP` 顯示可用指令
+
+**DoD**:
+- [ ] 建立 `admin` 模組目錄結構
+- [ ] 在獨立 TCP port (8890) 監聽管理連線
+- [ ] 簡單文字協議 (每行一個指令)
+- [ ] 支援基本認證 (`AUTH <token>`)
+- [ ] 實作 `HELP` 指令列出所有可用指令
+- [ ] Admin thread 與 Game loop 透過 mpsc channel 通訊
+
+**指令格式**:
+```
+AUTH <token>     # 認證 (必須先執行)
+HELP             # 顯示可用指令
+STATUS           # 顯示伺服器狀態
+ROOMS            # 列出所有房間
+PLAYERS          # 列出所有玩家
+LOGS [n]         # 顯示最近 n 條訊息 (預設 20)
+KICK <player_id> # 踢除玩家
+RESET [room_id]  # 重設遊戲 (預設當前房間)
+QUIT             # 斷開管理連線
+```
+
+---
+
+### S10.2 Message Logging & Viewing `[P1]` `TODO`
+
+**檔案**: `server/src/admin/logger.rs`
+**驗收指令**: `LOGS 10` 顯示最近 10 條遊戲訊息
+
+**DoD**:
+- [ ] 建立環形緩衝區 (Ring Buffer) 儲存最近 N 條訊息
+- [ ] 記錄關鍵事件 (玩家加入/離開、出牌、Trick 結果等)
+- [ ] 實作 `LOGS [n]` 指令
+- [ ] 訊息格式含時間戳記與事件類型
+- [ ] 支援按事件類型過濾 (選配)
+
+**訊息格式範例**:
+```
+[2026-01-16 12:34:56] PLAYER_JOIN: Alice (P1) joined R001
+[2026-01-16 12:35:02] PLAYER_JOIN: Bob (P2) joined R001
+[2026-01-16 12:35:02] GAME_START: R001 started (seed: 12345)
+[2026-01-16 12:35:10] PLAY: P1 plays 5H (trick 1)
+[2026-01-16 12:35:15] TRICK_RESULT: P3 wins trick 1
+```
+
+---
+
+### S10.3 Game Reset Command `[P0]` `TODO`
+
+**檔案**: `server/src/admin/commands.rs`, `server/src/main.rs`
+**驗收指令**: `RESET R001` 重設指定房間的遊戲
+
+**DoD**:
+- [ ] 實作 `RESET [room_id]` 指令
+- [ ] 若未指定 room_id，重設所有進行中的遊戲
+- [ ] 通知房間內所有玩家遊戲已重設
+- [ ] 房間回到 Waiting 狀態
+- [ ] 返回操作結果 (成功/失敗原因)
+
+**回應格式**:
+```
+OK: Room R001 reset successfully
+ERROR: Room R001 not found
+ERROR: Room R001 is not in playing state
+```
+
+---
+
+### S10.4 Kick Player Command `[P0]` `TODO`
+
+**檔案**: `server/src/admin/commands.rs`, `server/src/main.rs`
+**驗收指令**: `KICK P1` 踢除指定玩家
+
+**DoD**:
+- [ ] 實作 `KICK <player_id>` 指令
+- [ ] 關閉該玩家的 TCP 連線
+- [ ] 觸發正常的斷線處理流程
+- [ ] 若遊戲進行中，依 Bridge Mode 規則處理
+- [ ] 返回操作結果
+
+**回應格式**:
+```
+OK: Player P1 (Alice) kicked from R001
+ERROR: Player P1 not found
+ERROR: Cannot kick AI player
+```
+
+---
+
 ## 新增檔案結構
 
 ```
 server/src/
-├── ai/                      # 新增: AI 模組
+├── ai/                      # [EPIC 9] AI 模組
 │   ├── mod.rs               # AI 模組入口
 │   ├── player.rs            # AiPlayer 定義
-│   ├── turn_handler.rs      # AI 出牌處理
 │   └── strategy.rs          # 出牌策略 (trait + 實作)
-├── main.rs                  # 修改: 整合 AI 模組
+├── admin/                   # [EPIC 10] 遠端管理模組
+│   ├── mod.rs               # Admin 模組入口
+│   ├── server.rs            # Admin TCP server
+│   ├── commands.rs          # 指令處理 (KICK, RESET 等)
+│   └── logger.rs            # 訊息記錄與查看
+├── main.rs                  # 整合所有模組
 ├── lobby/
-│   └── room.rs              # 修改: 2 Human 開始規則
+│   └── room.rs              # Bridge Mode 房間管理
 └── protocol/
-    └── messages.rs          # 修改: 新增 GAME_ABORT 訊息
+    └── messages.rs          # 協議訊息類型
 ```
 
 ---
@@ -388,12 +491,16 @@ server/src/
 
 ```
 server/src/
-├── main.rs              # Accept loop + Game loop + UDP Heartbeat 啟動
+├── main.rs              # Accept loop + Game loop + UDP Heartbeat + Admin 啟動
 ├── ai/                  # [EPIC 9] 內建 AI 模組
 │   ├── mod.rs           # AI 模組入口
 │   ├── player.rs        # AiPlayer 定義
-│   ├── turn_handler.rs  # AI 出牌處理
 │   └── strategy.rs      # 出牌策略 (trait + 實作)
+├── admin/               # [EPIC 10] 遠端管理模組
+│   ├── mod.rs           # Admin 模組入口
+│   ├── server.rs        # Admin TCP server (port 8890)
+│   ├── commands.rs      # 指令處理 (KICK, RESET, STATUS 等)
+│   └── logger.rs        # 訊息記錄與查看 (Ring Buffer)
 ├── net/
 │   ├── mod.rs
 │   ├── listener.rs      # socket2 TCP listener
@@ -403,12 +510,12 @@ server/src/
 │   └── heartbeat.rs     # UDP heartbeat server (HB_PING/HB_PONG)
 ├── protocol/
 │   ├── mod.rs
-│   ├── messages.rs      # 完整 message types + HeartbeatPing/Pong + GAME_ABORT
+│   ├── messages.rs      # 完整 message types
 │   └── codec.rs         # NDJSON 編解碼
 ├── lobby/
 │   ├── mod.rs
 │   ├── handshake.rs     # HELLO/WELCOME + AI auth
-│   └── room.rs          # RoomManager, 2 Human 開始 (Bridge Mode)
+│   └── room.rs          # RoomManager, Bridge Mode
 └── game/
     ├── mod.rs
     ├── deck.rs          # 52張牌, Fisher-Yates shuffle
