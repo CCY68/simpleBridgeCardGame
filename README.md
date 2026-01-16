@@ -171,46 +171,7 @@ Branches:
 
 ---
 
-## 7. LLM Collaboration Guide
-
-本專案採用多 LLM 協作開發模式：
-
-### Role Distribution
-
-| LLM Tool | Primary Role | Guidelines |
-|----------|--------------|------------|
-| **Claude Code** | 主要開發 | 實作功能、撰寫測試、commit。參考 [.claude/CLAUDE.md](.claude/CLAUDE.md) |
-| **Gemini CLI** | Code Review / QA | 審查程式碼、找 bug、架構建議。參考 [GEMINI.md](GEMINI.md) |
-| **Web LLM** | Brainstorming | 規劃、文件撰寫、複雜問題討論 |
-
-### How to Start Development
-
-**For Claude Code:**
-```bash
-# 進入專案目錄
-cd /path/to/networkCardGame
-
-# 查看目前進度
-cat progress/stories.md | grep "IN_PROGRESS\|TODO"
-
-# 開始開發（Claude 會讀取 .claude/CLAUDE.md）
-claude
-```
-
-**For Gemini CLI:**
-```bash
-# 進入專案目錄
-cd /path/to/networkCardGame
-
-# 開始開發（Gemini 會讀取 GEMINI.md）
-gemini
-```
-
-> 詳細工作流程請參考各自的指引文件。
-
----
-
-## 8. License
+## 7. License
 
 TBD (for course project)
 
