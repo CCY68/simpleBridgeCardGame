@@ -4,7 +4,7 @@
 >
 > 最後更新: 2026-01-16
 >
-> **開發狀態: EPIC 10 (Remote Admin) 進行中**
+> **開發狀態: EPIC 10 (Remote Admin) 完成 ✅**
 
 ---
 
@@ -28,8 +28,8 @@
 | EPIC 3 - Game Engine | 6 | 6 | 0 | 0 |
 | EPIC 4 - UDP Heartbeat (Server) | 2 | 2 | 0 | 0 |
 | EPIC 9 - Bridge Mode (Server AI) | 5 | 5 | 0 | 0 |
-| EPIC 10 - Remote Admin Tools | 4 | 0 | 0 | 4 |
-| **Total** | **25** | **21** | **0** | **4** |
+| EPIC 10 - Remote Admin Tools | 4 | 4 | 0 | 0 |
+| **Total** | **25** | **25** | **0** | **0** |
 
 ---
 
@@ -367,23 +367,23 @@
 
 ---
 
-## EPIC 10 - Remote Admin Tools `TODO`
+## EPIC 10 - Remote Admin Tools `DONE`
 
 > **目標**: 提供獨立的 TCP 管理介面，允許管理員遠端監控伺服器狀態、
 > 查看遊戲訊息、重設遊戲、以及剔除玩家。
 
-### S10.1 Admin Server Architecture `[P0]` `TODO`
+### S10.1 Admin Server Architecture `[P0]` `DONE`
 
 **檔案**: `server/src/admin/mod.rs`, `server/src/admin/server.rs`
 **驗收指令**: `nc localhost 8890` 連線後輸入 `HELP` 顯示可用指令
 
 **DoD**:
-- [ ] 建立 `admin` 模組目錄結構
-- [ ] 在獨立 TCP port (8890) 監聽管理連線
-- [ ] 簡單文字協議 (每行一個指令)
-- [ ] 支援基本認證 (`AUTH <token>`)
-- [ ] 實作 `HELP` 指令列出所有可用指令
-- [ ] Admin thread 與 Game loop 透過 mpsc channel 通訊
+- [x] 建立 `admin` 模組目錄結構
+- [x] 在獨立 TCP port (8890) 監聯管理連線
+- [x] 簡單文字協議 (每行一個指令)
+- [x] 支援基本認證 (`AUTH <token>`)
+- [x] 實作 `HELP` 指令列出所有可用指令
+- [x] Admin thread 與 Game loop 透過 mpsc channel 通訊
 
 **指令格式**:
 ```
@@ -400,17 +400,17 @@ QUIT             # 斷開管理連線
 
 ---
 
-### S10.2 Message Logging & Viewing `[P1]` `TODO`
+### S10.2 Message Logging & Viewing `[P1]` `DONE`
 
 **檔案**: `server/src/admin/logger.rs`
 **驗收指令**: `LOGS 10` 顯示最近 10 條遊戲訊息
 
 **DoD**:
-- [ ] 建立環形緩衝區 (Ring Buffer) 儲存最近 N 條訊息
-- [ ] 記錄關鍵事件 (玩家加入/離開、出牌、Trick 結果等)
-- [ ] 實作 `LOGS [n]` 指令
-- [ ] 訊息格式含時間戳記與事件類型
-- [ ] 支援按事件類型過濾 (選配)
+- [x] 建立環形緩衝區 (Ring Buffer) 儲存最近 N 條訊息
+- [x] 記錄關鍵事件 (玩家加入/離開、出牌、Trick 結果等)
+- [x] 實作 `LOGS [n]` 指令
+- [x] 訊息格式含時間戳記與事件類型
+- [x] 支援按事件類型過濾
 
 **訊息格式範例**:
 ```
@@ -423,17 +423,17 @@ QUIT             # 斷開管理連線
 
 ---
 
-### S10.3 Game Reset Command `[P0]` `TODO`
+### S10.3 Game Reset Command `[P0]` `DONE`
 
 **檔案**: `server/src/admin/commands.rs`, `server/src/main.rs`
 **驗收指令**: `RESET R001` 重設指定房間的遊戲
 
 **DoD**:
-- [ ] 實作 `RESET [room_id]` 指令
-- [ ] 若未指定 room_id，重設所有進行中的遊戲
-- [ ] 通知房間內所有玩家遊戲已重設
-- [ ] 房間回到 Waiting 狀態
-- [ ] 返回操作結果 (成功/失敗原因)
+- [x] 實作 `RESET [room_id]` 指令
+- [x] 若未指定 room_id，重設所有進行中的遊戲
+- [x] 通知房間內所有玩家遊戲已重設
+- [x] 房間回到 Waiting 狀態
+- [x] 返回操作結果 (成功/失敗原因)
 
 **回應格式**:
 ```
@@ -444,17 +444,17 @@ ERROR: Room R001 is not in playing state
 
 ---
 
-### S10.4 Kick Player Command `[P0]` `TODO`
+### S10.4 Kick Player Command `[P0]` `DONE`
 
 **檔案**: `server/src/admin/commands.rs`, `server/src/main.rs`
 **驗收指令**: `KICK P1` 踢除指定玩家
 
 **DoD**:
-- [ ] 實作 `KICK <player_id>` 指令
-- [ ] 關閉該玩家的 TCP 連線
-- [ ] 觸發正常的斷線處理流程
-- [ ] 若遊戲進行中，依 Bridge Mode 規則處理
-- [ ] 返回操作結果
+- [x] 實作 `KICK <player_id>` 指令
+- [x] 關閉該玩家的 TCP 連線
+- [x] 觸發正常的斷線處理流程
+- [x] 若遊戲進行中，依 Bridge Mode 規則處理
+- [x] 返回操作結果
 
 **回應格式**:
 ```
@@ -528,7 +528,7 @@ server/src/
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Unit Tests | 48 | ✅ All Passed |
+| Unit Tests | 58 | ✅ All Passed |
 | Integration | Manual | ✅ Verified |
 
 ---
@@ -559,6 +559,16 @@ echo '{"type":"HELLO","role":"HUMAN","nickname":"TestUser","proto":1}' | nc -w1 
 ---
 
 ## Changelog
+
+### 2026-01-16 (Update 2)
+- **完成 EPIC 10 (S10.1 ~ S10.4) - Remote Admin Tools**
+  - admin/mod.rs: Admin 模組入口
+  - admin/server.rs: TCP 8890 管理伺服器
+  - admin/commands.rs: 指令解析與格式化
+  - admin/logger.rs: Ring Buffer 遊戲日誌
+  - main.rs: 整合 admin 事件處理
+  - lobby/room.rs: 新增 Admin 輔助方法
+- 測試數量: 48 → 58
 
 ### 2026-01-16
 - **完成 EPIC 9 (S9.1 ~ S9.5) - Bridge Mode (Server-side AI)**

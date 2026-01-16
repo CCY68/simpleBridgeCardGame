@@ -619,6 +619,6 @@
 | EPIC 7 - GUI Client | DONE | Tkinter GUI 完成 |
 | EPIC 8 - C++ Client | DONE | C++ CLI Client (含 Heartbeat) 完成 |
 | EPIC 9 - Bridge Mode | DONE | Server 內建 AI，2 Human 開始 |
-| EPIC 10 - Remote Admin | TODO | Server 遠端管理介面 (TCP 8890) |
+| EPIC 10 - Remote Admin | DONE | Server 遠端管理介面 (TCP 8890) |
 | EPIC 11 - Admin GUI | TODO | Python/Tkinter 管理工具 |
 | BONUS | TODO | 依需求再排定 |

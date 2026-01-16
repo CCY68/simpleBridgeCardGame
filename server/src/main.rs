@@ -1,9 +1,13 @@
+mod admin;
 mod ai;
 mod game;
 mod lobby;
 mod net;
 mod protocol;
 
+use admin::{
+    spawn_admin_server, AdminConfig, AdminEvent, AdminResponse, GameLogger, PlayerInfo, RoomInfo,
+};
 use ai::{AiStrategy, SmartStrategy};
 use game::{CardData, GameEngine, PlayError, PlayResult, TrickResolution};
 use lobby::{HandshakeResult, Room, RoomManager, RoomState, process_hello};
@@ -16,10 +20,12 @@ use protocol::{ClientMessage, ErrorCode, RejectReason, RoomId, ServerMessage};
 use std::collections::HashMap;
 use std::env;
 use std::net::SocketAddr;
+use std::sync::mpsc;
 use std::thread;
 
 const DEFAULT_PORT: u16 = 8888;
 const DEFAULT_UDP_PORT_OFFSET: u16 = 1; // UDP port = TCP port + 1
+const DEFAULT_ADMIN_PORT_OFFSET: u16 = 2; // Admin port = TCP port + 2
 const STALE_THRESHOLD_SECS: u64 = 10; // Client stale 閾值 (秒)
 
 /// 伺服器設定
@@ -97,8 +103,30 @@ fn main() {
         accept_loop(listener, accept_tx);
     });
 
+    // 啟動 Admin Server
+    let admin_port = port + DEFAULT_ADMIN_PORT_OFFSET;
+    let (admin_tx, admin_rx) = mpsc::channel();
+    let logger = GameLogger::new();
+
+    let admin_config = AdminConfig {
+        port: admin_port,
+        ..AdminConfig::default()
+    };
+
+    match spawn_admin_server(admin_config, admin_tx, logger.clone()) {
+        Ok(_) => {
+            info!("[SERVER] Admin server started on port {}", admin_port);
+        }
+        Err(e) => {
+            warn!(
+                "[SERVER] Failed to start Admin server: {} (continuing without admin)",
+                e
+            );
+        }
+    }
+
     let config = ServerConfig::default();
-    game_loop(event_rx, config);
+    game_loop(event_rx, admin_rx, logger, config);
 }
 
 fn accept_loop(listener: std::net::TcpListener, event_tx: net::EventSender) {
@@ -124,47 +152,68 @@ fn accept_loop(listener: std::net::TcpListener, event_tx: net::EventSender) {
     }
 }
 
-fn game_loop(event_rx: net::EventReceiver, config: ServerConfig) {
+fn game_loop(
+    event_rx: net::EventReceiver,
+    admin_rx: mpsc::Receiver<AdminEvent>,
+    logger: GameLogger,
+    config: ServerConfig,
+) {
     let mut state = ServerState::new();
 
     info!("[GAME] Game loop started");
 
-    for event in event_rx {
-        match event {
-            GameEvent::Connected { conn_id, sender } => {
-                info!(
-                    "[GAME] Client #{} connected (total: {})",
-                    conn_id,
-                    state.clients.len() + 1
-                );
-                state.clients.insert(conn_id, sender);
-            }
+    loop {
+        // 先處理 admin 事件 (non-blocking)
+        while let Ok(admin_event) = admin_rx.try_recv() {
+            handle_admin_event(admin_event, &mut state, &logger);
+        }
 
-            GameEvent::Disconnected { conn_id } => {
-                state.clients.remove(&conn_id);
-
-                // 取得該連線所在的房間
-                let room_id = state.conn_to_room.remove(&conn_id);
-
-                if let Some(room_id) = room_id {
-                    // 處理 Bridge Mode 遊戲重啟
-                    handle_bridge_mode_disconnect(conn_id, &room_id, &mut state);
-                } else if let Some(player) = state.room_manager.handle_disconnect(conn_id) {
+        // 處理 game 事件 (blocking with timeout)
+        match event_rx.recv_timeout(std::time::Duration::from_millis(100)) {
+            Ok(event) => match event {
+                GameEvent::Connected { conn_id, sender } => {
                     info!(
-                        "[GAME] Player '{}' ({}) disconnected from room",
-                        player.nickname, player.player_id
+                        "[GAME] Client #{} connected (total: {})",
+                        conn_id,
+                        state.clients.len() + 1
+                    );
+                    state.clients.insert(conn_id, sender);
+                }
+
+                GameEvent::Disconnected { conn_id } => {
+                    state.clients.remove(&conn_id);
+
+                    // 取得該連線所在的房間
+                    let room_id = state.conn_to_room.remove(&conn_id);
+
+                    if let Some(room_id) = room_id {
+                        // 處理 Bridge Mode 遊戲重啟
+                        handle_bridge_mode_disconnect(conn_id, &room_id, &mut state, &logger);
+                    } else if let Some(player) = state.room_manager.handle_disconnect(conn_id) {
+                        info!(
+                            "[GAME] Player '{}' ({}) disconnected from room",
+                            player.nickname, player.player_id
+                        );
+                        logger.player_leave(&player.player_id, &player.nickname, "unknown");
+                    }
+
+                    info!(
+                        "[GAME] Client #{} disconnected (total: {})",
+                        conn_id,
+                        state.clients.len()
                     );
                 }
 
-                info!(
-                    "[GAME] Client #{} disconnected (total: {})",
-                    conn_id,
-                    state.clients.len()
-                );
+                GameEvent::Message { conn_id, message } => {
+                    handle_message(conn_id, &message, &mut state, &logger, &config);
+                }
+            },
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // Timeout, 繼續迴圈 (處理 admin 事件)
             }
-
-            GameEvent::Message { conn_id, message } => {
-                handle_message(conn_id, &message, &mut state, &config);
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                info!("[GAME] Event channel closed, shutting down");
+                break;
             }
         }
     }
@@ -176,6 +225,7 @@ fn handle_message(
     conn_id: ConnectionId,
     msg: &ClientMessage,
     state: &mut ServerState,
+    logger: &GameLogger,
     config: &ServerConfig,
 ) {
     match msg {
@@ -190,11 +240,11 @@ fn handle_message(
             proto,
             auth,
         } => {
-            handle_hello(conn_id, role, nickname, *proto, auth, state, config);
+            handle_hello(conn_id, role, nickname, *proto, auth, state, logger, config);
         }
 
         ClientMessage::Play { card } => {
-            handle_play(conn_id, card, state);
+            handle_play(conn_id, card, state, logger);
         }
     }
 }
@@ -206,6 +256,7 @@ fn handle_hello(
     proto: u32,
     auth: &Option<String>,
     state: &mut ServerState,
+    logger: &GameLogger,
     config: &ServerConfig,
 ) {
     info!("[GAME] #{} HELLO from {:?} '{}'", conn_id, role, nickname);
@@ -268,6 +319,7 @@ fn handle_hello(
                     "[LOBBY] Player '{}' ({}) joined room {} ({}/4 players)",
                     final_nickname, player_id, room_id, player_count
                 );
+                logger.player_join(player_id, final_nickname, room_id);
 
                 for &cid in &conn_ids {
                     send_to(&state.clients, cid, &wait_msg);
@@ -289,13 +341,14 @@ fn handle_hello(
                             .collect();
 
                         info!("[LOBBY] Room {} starting game with seed {}", room_id_clone, seed);
+                        logger.game_start(&room_id_clone, seed);
 
                         for &cid in &conn_ids {
                             send_to(&state.clients, cid, &start_msg);
                         }
 
                         // 建立 GameEngine 並發牌
-                        start_game(&room_id_clone, seed, players_with_teams, state);
+                        start_game(&room_id_clone, seed, players_with_teams, state, logger);
                     }
                 }
             }
@@ -312,6 +365,7 @@ fn start_game(
     seed: u64,
     players: Vec<(ConnectionId, String, protocol::Team)>,
     state: &mut ServerState,
+    logger: &GameLogger,
 ) {
     info!("[ENGINE] Creating game engine for room {}", room_id);
 
@@ -329,10 +383,10 @@ fn start_game(
     state.games.insert(room_id.to_string(), engine);
 
     // 處理回合 (如果第一位是 AI，自動出牌；否則發 YOUR_TURN 給 Human)
-    process_ai_turns(room_id, state);
+    process_ai_turns(room_id, state, logger);
 }
 
-fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
+fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState, logger: &GameLogger) {
     // 找到該連線所屬的遊戲
     let room_id = match state.conn_to_room.get(&conn_id) {
         Some(id) => id.clone(),
@@ -391,10 +445,14 @@ fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
         }
     };
 
+    let player_id = engine.players[player_idx].player_id.clone();
+    let current_trick = engine.current_trick;
+
     info!(
         "[ENGINE] {} plays {} (trick {})",
-        engine.players[player_idx].player_id, card, engine.current_trick
+        player_id, card, current_trick
     );
+    logger.play(&player_id, card, current_trick);
 
     // 執行出牌
     let play_result = engine.play_card(player_idx, card_data);
@@ -405,7 +463,7 @@ fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
             broadcast_to_humans(&room_id, &broadcast_msg, state);
 
             // 處理下一位玩家回合 (可能是 AI 自動出牌)
-            process_ai_turns(&room_id, state);
+            process_ai_turns(&room_id, state, logger);
         }
 
         PlayResult::TrickComplete(broadcast_msg) => {
@@ -422,16 +480,20 @@ fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
                     broadcast_to_humans(&room_id, &result_msg, state);
 
                     let engine = state.games.get(&room_id).unwrap();
+                    let winner_id = engine.players[next_idx].player_id.clone();
+                    let trick_num = engine.current_trick - 1;
+
                     info!(
                         "[ENGINE] Trick {} complete, winner: {}, score: HUMAN={} AI={}",
-                        engine.current_trick - 1,
-                        engine.players[next_idx].player_id,
+                        trick_num,
+                        winner_id,
                         engine.score.human,
                         engine.score.ai
                     );
+                    logger.trick_result(&winner_id, trick_num);
 
                     // 處理下一位玩家回合 (可能是 AI 自動出牌)
-                    process_ai_turns(&room_id, state);
+                    process_ai_turns(&room_id, state, logger);
                 }
 
                 TrickResolution::GameOver(result_msg) => {
@@ -443,16 +505,20 @@ fn handle_play(conn_id: ConnectionId, card: &str, state: &mut ServerState) {
                     let game_over_msg = engine.game_over_message();
                     broadcast_to_humans(&room_id, &game_over_msg, state);
 
+                    let human_score = engine.score.human;
+                    let ai_score = engine.score.ai;
+
                     info!(
                         "[ENGINE] Game over! Final score: HUMAN={} AI={}, Winner: {:?}",
-                        engine.score.human,
-                        engine.score.ai,
-                        if engine.score.human > engine.score.ai {
+                        human_score,
+                        ai_score,
+                        if human_score > ai_score {
                             "HUMAN"
                         } else {
                             "AI"
                         }
                     );
+                    logger.game_end(&room_id, human_score, ai_score);
 
                     // 移除遊戲 (可選: 保留用於重播)
                     // state.games.remove(&room_id);
@@ -472,7 +538,7 @@ fn send_to(clients: &HashMap<ConnectionId, ClientSender>, conn_id: ConnectionId,
 
 /// 檢查並處理 AI 玩家的回合
 /// 如果當前玩家是 AI，自動選擇並出牌，直到輪到 Human 或遊戲結束
-fn process_ai_turns(room_id: &str, state: &mut ServerState) {
+fn process_ai_turns(room_id: &str, state: &mut ServerState, logger: &GameLogger) {
     let strategy = SmartStrategy::default();
 
     loop {
@@ -507,6 +573,7 @@ fn process_ai_turns(room_id: &str, state: &mut ServerState) {
         let legal_moves = engine.get_legal_moves(current_idx);
         let table: Vec<(usize, CardData)> = engine.table.clone();
         let is_leader = table.is_empty();
+        let current_trick = engine.current_trick;
 
         // 使用策略選擇牌
         let chosen_card = strategy.choose_card(&hand, &legal_moves, &table, is_leader);
@@ -514,8 +581,9 @@ fn process_ai_turns(room_id: &str, state: &mut ServerState) {
 
         info!(
             "[AI] {} chooses {} (trick {}, is_leader={})",
-            player_id, card_str, engine.current_trick, is_leader
+            player_id, card_str, current_trick, is_leader
         );
+        logger.play(&player_id, &card_str, current_trick);
 
         // 執行出牌
         let play_result = engine.play_card(current_idx, chosen_card);
@@ -541,13 +609,17 @@ fn process_ai_turns(room_id: &str, state: &mut ServerState) {
                         broadcast_to_humans(room_id, &result_msg, state);
 
                         let engine = state.games.get(room_id).unwrap();
+                        let winner_id = engine.players[next_idx].player_id.clone();
+                        let trick_num = engine.current_trick - 1;
+
                         info!(
                             "[ENGINE] Trick {} complete, winner: {}, score: HUMAN={} AI={}",
-                            engine.current_trick - 1,
-                            engine.players[next_idx].player_id,
+                            trick_num,
+                            winner_id,
                             engine.score.human,
                             engine.score.ai
                         );
+                        logger.trick_result(&winner_id, trick_num);
                         // 繼續迴圈處理下一位玩家
                     }
 
@@ -560,16 +632,20 @@ fn process_ai_turns(room_id: &str, state: &mut ServerState) {
                         let game_over_msg = engine.game_over_message();
                         broadcast_to_humans(room_id, &game_over_msg, state);
 
+                        let human_score = engine.score.human;
+                        let ai_score = engine.score.ai;
+
                         info!(
                             "[ENGINE] Game over! Final score: HUMAN={} AI={}, Winner: {:?}",
-                            engine.score.human,
-                            engine.score.ai,
-                            if engine.score.human > engine.score.ai {
+                            human_score,
+                            ai_score,
+                            if human_score > ai_score {
                                 "HUMAN"
                             } else {
                                 "AI"
                             }
                         );
+                        logger.game_end(room_id, human_score, ai_score);
                         return;
                     }
                 }
@@ -591,7 +667,12 @@ fn broadcast_to_humans(room_id: &str, msg: &ServerMessage, state: &ServerState) 
 
 /// 處理 Bridge Mode 下的玩家斷線
 /// 如果遊戲進行中有玩家斷線，重置遊戲等待新玩家
-fn handle_bridge_mode_disconnect(conn_id: ConnectionId, room_id: &str, state: &mut ServerState) {
+fn handle_bridge_mode_disconnect(
+    conn_id: ConnectionId,
+    room_id: &str,
+    state: &mut ServerState,
+    logger: &GameLogger,
+) {
     // 取得房間資訊
     let room = match state.room_manager.get_room_mut(room_id) {
         Some(r) => r,
@@ -607,6 +688,7 @@ fn handle_bridge_mode_disconnect(conn_id: ConnectionId, room_id: &str, state: &m
             "[GAME] Player '{}' ({}) disconnected from room {}",
             p.nickname, p.player_id, room_id
         );
+        logger.player_leave(&p.player_id, &p.nickname, room_id);
     }
 
     // Bridge Mode 且遊戲進行中，需要重置
@@ -645,6 +727,180 @@ fn handle_bridge_mode_disconnect(conn_id: ConnectionId, room_id: &str, state: &m
             room_id,
             room.players_needed()
         );
+    }
+}
+
+/// 處理 Admin 事件
+fn handle_admin_event(event: AdminEvent, state: &mut ServerState, logger: &GameLogger) {
+    match event {
+        AdminEvent::GetStatus { reply_tx } => {
+            let total_connections = state.clients.len();
+            let total_rooms = state.room_manager.rooms_count();
+            let games_in_progress = state.games.len();
+
+            let _ = reply_tx.send(AdminResponse::Status {
+                total_connections,
+                total_rooms,
+                games_in_progress,
+            });
+        }
+
+        AdminEvent::GetRooms { reply_tx } => {
+            let rooms = state.room_manager.get_all_rooms_info();
+            let room_infos: Vec<RoomInfo> = rooms
+                .iter()
+                .map(|(id, room_state, player_count, human_count)| RoomInfo {
+                    id: id.clone(),
+                    state: room_state.clone(),
+                    player_count: *player_count,
+                    human_count: *human_count,
+                })
+                .collect();
+
+            let _ = reply_tx.send(AdminResponse::Rooms(room_infos));
+        }
+
+        AdminEvent::GetPlayers { reply_tx } => {
+            let players = state.room_manager.get_all_players_info();
+            let player_infos: Vec<PlayerInfo> = players
+                .iter()
+                .map(|(player_id, nickname, room_id, role, is_ai)| PlayerInfo {
+                    player_id: player_id.clone(),
+                    nickname: nickname.clone(),
+                    room_id: room_id.clone(),
+                    role: role.clone(),
+                    is_ai: *is_ai,
+                })
+                .collect();
+
+            let _ = reply_tx.send(AdminResponse::Players(player_infos));
+        }
+
+        AdminEvent::KickPlayer { player_id, reply_tx } => {
+            // 找到玩家的連線 ID
+            if let Some((conn_id, room_id)) = state.room_manager.find_player_conn(&player_id) {
+                if Room::is_virtual_conn(conn_id) {
+                    let _ = reply_tx.send(AdminResponse::Error("Cannot kick AI player".to_string()));
+                    return;
+                }
+
+                // 關閉該玩家的連線 (會觸發 Disconnected 事件)
+                if let Some(sender) = state.clients.get(&conn_id) {
+                    // 發送斷線訊息
+                    let _ = sender.send(ServerMessage::Error {
+                        code: ErrorCode::ProtocolError,
+                        message: "You have been kicked by admin".to_string(),
+                    });
+                }
+
+                // 移除連線
+                state.clients.remove(&conn_id);
+                state.conn_to_room.remove(&conn_id);
+
+                // 處理房間
+                if let Some(room) = state.room_manager.get_room_mut(&room_id) {
+                    let was_playing = room.state == RoomState::Playing;
+
+                    if let Some(player) = room.remove_player(conn_id) {
+                        logger.admin_action("KICK", &format!("Kicked {} from {}", player.nickname, room_id));
+
+                        if room.bridge_mode && was_playing {
+                            // 重置房間
+                            state.games.remove(&room_id);
+                            room.reset_for_bridge_mode();
+                        }
+                    }
+                }
+
+                let _ = reply_tx.send(AdminResponse::Ok(format!(
+                    "Player {} kicked from {}",
+                    player_id, room_id
+                )));
+            } else {
+                let _ = reply_tx.send(AdminResponse::Error(format!(
+                    "Player {} not found",
+                    player_id
+                )));
+            }
+        }
+
+        AdminEvent::ResetRoom { room_id, reply_tx } => {
+            match room_id {
+                Some(rid) => {
+                    if let Some(room) = state.room_manager.get_room_mut(&rid) {
+                        if room.state != RoomState::Playing {
+                            let _ = reply_tx.send(AdminResponse::Error(format!(
+                                "Room {} is not in playing state",
+                                rid
+                            )));
+                            return;
+                        }
+
+                        // 移除遊戲引擎
+                        state.games.remove(&rid);
+
+                        // 通知玩家
+                        for player in &room.players {
+                            if !Room::is_virtual_conn(player.conn_id) {
+                                send_to(
+                                    &state.clients,
+                                    player.conn_id,
+                                    &ServerMessage::Error {
+                                        code: ErrorCode::ProtocolError,
+                                        message: "Game reset by admin".to_string(),
+                                    },
+                                );
+                            }
+                        }
+
+                        // 重置房間
+                        if room.bridge_mode {
+                            room.reset_for_bridge_mode();
+                        } else {
+                            room.state = RoomState::Waiting;
+                        }
+
+                        logger.admin_action("RESET", &format!("Reset room {}", rid));
+                        let _ = reply_tx.send(AdminResponse::Ok(format!("Room {} reset successfully", rid)));
+                    } else {
+                        let _ = reply_tx.send(AdminResponse::Error(format!("Room {} not found", rid)));
+                    }
+                }
+                None => {
+                    // Reset all rooms
+                    let room_ids: Vec<String> = state.games.keys().cloned().collect();
+                    let mut reset_count = 0;
+
+                    for rid in room_ids {
+                        state.games.remove(&rid);
+                        if let Some(room) = state.room_manager.get_room_mut(&rid) {
+                            for player in &room.players {
+                                if !Room::is_virtual_conn(player.conn_id) {
+                                    send_to(
+                                        &state.clients,
+                                        player.conn_id,
+                                        &ServerMessage::Error {
+                                            code: ErrorCode::ProtocolError,
+                                            message: "Game reset by admin".to_string(),
+                                        },
+                                    );
+                                }
+                            }
+
+                            if room.bridge_mode {
+                                room.reset_for_bridge_mode();
+                            } else {
+                                room.state = RoomState::Waiting;
+                            }
+                            reset_count += 1;
+                        }
+                    }
+
+                    logger.admin_action("RESET", &format!("Reset {} rooms", reset_count));
+                    let _ = reply_tx.send(AdminResponse::Ok(format!("{} rooms reset", reset_count)));
+                }
+            }
+        }
     }
 }
 

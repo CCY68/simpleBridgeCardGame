@@ -391,6 +391,64 @@ impl RoomManager {
     pub fn get_room_mut(&mut self, room_id: &str) -> Option<&mut Room> {
         self.rooms.get_mut(room_id)
     }
+
+    // === Admin 輔助方法 ===
+
+    /// 取得房間總數
+    pub fn rooms_count(&self) -> usize {
+        self.rooms.len()
+    }
+
+    /// 取得所有房間資訊 (for Admin)
+    pub fn get_all_rooms_info(&self) -> Vec<(String, String, usize, usize)> {
+        self.rooms
+            .values()
+            .map(|room| {
+                let state_str = match room.state {
+                    RoomState::Waiting => "Waiting",
+                    RoomState::Playing => "Playing",
+                    RoomState::Finished => "Finished",
+                };
+                (
+                    room.id.clone(),
+                    state_str.to_string(),
+                    room.players.len(),
+                    room.human_count(),
+                )
+            })
+            .collect()
+    }
+
+    /// 取得所有玩家資訊 (for Admin)
+    pub fn get_all_players_info(&self) -> Vec<(String, String, String, String, bool)> {
+        let mut players = Vec::new();
+        for room in self.rooms.values() {
+            for player in &room.players {
+                let role_str = match player.role {
+                    Role::Human => "HUMAN",
+                    Role::Ai => "AI",
+                };
+                players.push((
+                    player.player_id.clone(),
+                    player.nickname.clone(),
+                    room.id.clone(),
+                    role_str.to_string(),
+                    Room::is_virtual_conn(player.conn_id),
+                ));
+            }
+        }
+        players
+    }
+
+    /// 找到玩家的連線 ID 和房間 ID (for Admin)
+    pub fn find_player_conn(&self, player_id: &str) -> Option<(ConnectionId, String)> {
+        for room in self.rooms.values() {
+            if let Some(player) = room.players.iter().find(|p| p.player_id == player_id) {
+                return Some((player.conn_id, room.id.clone()));
+            }
+        }
+        None
+    }
 }
 
 impl Default for RoomManager {
