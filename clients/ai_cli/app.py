@@ -179,7 +179,8 @@ class AIClient:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CardArena AI Client")
-    parser.add_argument("--host", default="127.0.0.1", help="Server IP")
+    parser.add_argument("server_ip", nargs="?", help="Server IP")
+    parser.add_argument("--host", default="127.0.0.1", help="Server IP (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8888, help="Server Port")
     parser.add_argument("--name", default="Bot_1", help="AI Nickname")
     parser.add_argument("--token", default="secret", help="Auth Token")
@@ -187,5 +188,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    bot = AIClient(args.host, args.port, args.name, args.token, use_gemini=not args.no_llm)
+    target_host = args.server_ip if args.server_ip else args.host
+    
+    bot = AIClient(target_host, args.port, args.name, args.token, use_gemini=not args.no_llm)
     bot.run()

@@ -3,11 +3,18 @@
 #include "net/tcp_client.hpp"
 #include "game/game_manager.hpp"
 
-int main() {
+int main(int argc, char* argv[]) {
     std::cout << "=== CardArena C++ Client (CLI) ===" << std::endl;
     
     std::string host = "127.0.0.1";
     int port = 8888;
+
+    if (argc > 1) {
+        host = argv[1];
+    }
+    
+    std::cout << "Target Server: " << host << ":" << port << std::endl;
+
     std::string nickname;
 
     std::cout << "Enter Nickname: ";

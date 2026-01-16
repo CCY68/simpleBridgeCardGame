@@ -68,31 +68,26 @@ if ! kill -0 "$SERVER_PID" 2>/dev/null; then
 fi
 echo -e "${GREEN}[INFO]${NC} Server started (PID: $SERVER_PID)"
 
-# Step 3: Start AI Clients (3 bots)
-echo -e "${GREEN}[3/5]${NC} Starting 3 AI clients..."
-for i in 1 2 3; do
-    python3 "$PROJECT_ROOT/clients/ai_cli/app.py" \
-        --host 127.0.0.1 \
-        --port "$PORT" \
-        --name "Bot_$i" \
-        --token "secret" \
-        --no-llm > /dev/null 2>&1 &
-    sleep 0.3
-done
+# Step 3: Start Dummy Human Client (to satisfy 2-human requirement)
+echo -e "${GREEN}[3/5]${NC} Starting Dummy Human client..."
+python3 "$PROJECT_ROOT/scripts/dummy_human.py" "$PORT" "DummyPy" > /dev/null 2>&1 &
+DUMMY_PID=$!
+sleep 1
 
 # Step 4: Start C++ Client with automated input
 echo -e "${GREEN}[4/5]${NC} Starting C++ client (automated)..."
 
-# 建立輸入：nickname 加上多個數字嘗試 (0-12 循環，總會命中合法牌)
+# 建立輸入：nickname 加上多個 "auto" 嘗試 (足以覆蓋一局)
 {
     echo "CppTestPlayer"
-    for round in $(seq 1 15); do
-        for idx in $(seq 0 12); do
-            sleep 0.2
-            echo "$idx"
-        done
+    for round in $(seq 1 20); do
+        sleep 0.5
+        echo "auto"
     done
 } | timeout 45 "$PROJECT_ROOT/clients/cpp_cli/client" > "$CPP_OUTPUT" 2>&1 || true
+
+# Cleanup dummy
+kill "$DUMMY_PID" 2>/dev/null || true
 
 # Step 5: Verify Results
 echo -e "${GREEN}[5/5]${NC} Verifying results..."

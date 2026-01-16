@@ -109,6 +109,10 @@ namespace net {
                 size_t pos = 0;
                 while ((pos = accumulation.find('\n')) != std::string::npos) {
                     std::string line = accumulation.substr(0, pos);
+                    // Strip \r if present (handle Windows \r\n)
+                    if (!line.empty() && line.back() == '\r') {
+                        line.pop_back();
+                    }
                     if (!line.empty() && on_message_) {
                         on_message_(line);
                     }

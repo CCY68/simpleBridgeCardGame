@@ -149,11 +149,17 @@ class HumanCLI:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CardArena Human CLI Client")
-    parser.add_argument("--host", default="127.0.0.1", help="Server IP")
+    # Positional arg (optional)
+    parser.add_argument("server_ip", nargs="?", help="Server IP Address")
+    # Flag arg (backward compatibility)
+    parser.add_argument("--host", default="127.0.0.1", help="Server IP (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8888, help="Server Port")
     parser.add_argument("--name", default="Player_CLI", help="Nickname")
     
     args = parser.parse_args()
     
-    cli = HumanCLI(args.host, args.port, args.name)
+    # Use positional if provided, otherwise flag
+    target_host = args.server_ip if args.server_ip else args.host
+    
+    cli = HumanCLI(target_host, args.port, args.name)
     cli.run()
