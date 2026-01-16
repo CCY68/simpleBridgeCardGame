@@ -31,6 +31,10 @@ namespace game {
         void on_trick_result(const std::string& json);
         void on_game_over(const std::string& json);
         void on_error(const std::string& json);
+
+        // Helpers
+        int get_card_value(const std::string& code);
+        std::string trim(const std::string& str);
     };
 
 }

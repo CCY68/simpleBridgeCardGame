@@ -79,7 +79,7 @@ class HumanCLI:
 
         elif m_type == "YOUR_TURN":
             self.my_turn_data = msg
-            print(f"\n👉 YOUR TURN! Trick #{msg.get('trick')}")
+            print(f"\n*** YOUR TURN! *** (Trick #{msg.get('trick')})")
             print(f"   Table: {self._fmt_table(msg.get('table', []))}")
             print(f"   Legal Moves: {msg.get('legal')}")
             # Signal input thread to wake up
@@ -145,7 +145,7 @@ class HumanCLI:
 
     def _fmt_table(self, table):
         if not table: return "Empty"
-        return ", ".join([f"{c['player']}:{c['card']}" for c in table])
+        return ", ".join([f"{c['player_id']}:{c['card']}" for c in table])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CardArena Human CLI Client")

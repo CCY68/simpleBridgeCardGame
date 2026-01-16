@@ -85,56 +85,122 @@ namespace game {
 
     void GameManager::render_ui() {
         // Simple CLI view
-        std::cout << "\n------------------------------------------" << std::endl;
-        std::cout << " Trick: " << state_.current_trick << "/" << state_.total_tricks 
-                  << " | Score: H:" << state_.score.human << " A:" << state_.score.ai << std::endl;
+        // Using a buffer to prevent output interleaving
+        std::stringstream ss;
+        ss << "\n------------------------------------------" << std::endl;
+        ss << " Trick: " << state_.current_trick << "/" << state_.total_tricks 
+           << " | Score: H:" << state_.score.human << " A:" << state_.score.ai << std::endl;
         
-        std::cout << " Net: RTT=" << hb_.get_last_rtt() << "ms Loss=" << (hb_.get_loss_rate() * 100.0) << "%" << std::endl;
+        ss << " Net: RTT=" << hb_.get_last_rtt() << "ms Loss=" << (hb_.get_loss_rate() * 100.0) << "%" << std::endl;
 
-        std::cout << " Table: ";
-        if (state_.table.empty()) std::cout << "(empty)";
-        for (const auto& p : state_.table) std::cout << "[" << p.player_id << ":" << p.card << "] ";
-        std::cout << std::endl;
+        ss << " Table: ";
+        if (state_.table.empty()) ss << "(empty)";
+        for (const auto& p : state_.table) ss << "[" << p.player_id << ":" << p.card << "] ";
+        ss << std::endl;
 
-        std::cout << " Hand: ";
+        ss << " Hand: ";
         for (size_t i = 0; i < state_.hand.size(); ++i) {
-            std::cout << "(" << i << ")" << state_.hand[i].code << " ";
+            ss << "(" << i << ")" << state_.hand[i].code << " ";
         }
-        std::cout << std::endl;
+        ss << std::endl;
 
         if (state_.my_turn) {
-            std::cout << " Legal Moves: ";
-            for (const auto& c : state_.legal_moves) std::cout << c.code << " ";
-            std::cout << "\n Enter index (0-" << state_.hand.size()-1 << ") to play: " << std::flush;
+            ss << " Legal Moves: ";
+            for (const auto& c : state_.legal_moves) ss << c.code << " ";
+            ss << "\n Enter card to play (e.g. 'AS', '10H') or 'auto': " << std::flush;
         } else {
-            std::cout << " Waiting for other players..." << std::endl;
+            ss << " Waiting for other players..." << std::endl;
         }
+        
+        std::cout << ss.str();
     }
 
-    void GameManager::process_input(const std::string& input) {
+    void GameManager::process_input(const std::string& raw_input) {
         std::lock_guard<std::mutex> lock(state_mutex_);
         if (!state_.my_turn) return;
 
-        try {
-            int idx = std::stoi(input);
-            if (idx >= 0 && idx < (int)state_.hand.size()) {
-                std::string card = state_.hand[idx].code;
-                
-                // Basic client-side validation
-                bool is_legal = false;
-                for (const auto& c : state_.legal_moves) {
-                    if (c.code == card) { is_legal = true; break; }
-                }
+        std::string input = trim(raw_input);
+        if (input.empty()) return;
 
-                if (is_legal) {
-                    client_.send_message(protocol::JsonHelper::build_play(card));
-                } else {
-                    std::cout << ">> Illegal move! Please select from legal moves." << std::endl;
+        // Convert input to uppercase for case-insensitive matching
+        std::string card_code = input;
+        std::transform(card_code.begin(), card_code.end(), card_code.begin(), ::toupper);
+
+        try {
+            // Strategy: Auto Play (Max Rank)
+            if (card_code == "AUTO" || card_code == "A") {
+                if (state_.legal_moves.empty()) return;
+                
+                // Find the best card (highest rank) in legal moves
+                std::string best_card = state_.legal_moves[0].code;
+                int max_val = -1;
+
+                for (const auto& c : state_.legal_moves) {
+                    int val = get_card_value(c.code);
+                    if (val > max_val) {
+                        max_val = val;
+                        best_card = c.code;
+                    }
+                }
+                
+                std::cout << ">> Auto-playing highest rank: " << best_card << std::endl;
+                client_.send_message(protocol::JsonHelper::build_play(best_card));
+                return;
+            }
+
+            // Manual Play by Card Code
+            // Check if user input matches a card in hand
+            bool in_hand = false;
+            for (const auto& c : state_.hand) {
+                if (c.code == card_code) {
+                    in_hand = true;
+                    break;
                 }
             }
+
+            if (!in_hand) {
+                std::cout << ">> You don't have card '" << card_code << "'." << std::endl;
+                return;
+            }
+
+            // Check legality
+            bool is_legal = false;
+            for (const auto& c : state_.legal_moves) {
+                if (c.code == card_code) { is_legal = true; break; }
+            }
+
+            if (is_legal) {
+                client_.send_message(protocol::JsonHelper::build_play(card_code));
+            } else {
+                std::cout << ">> Illegal move! Please select from legal moves." << std::endl;
+            }
+
         } catch (...) {
-            std::cout << ">> Invalid input. Enter a number." << std::endl;
+            std::cout << ">> Error processing input." << std::endl;
         }
+    }
+
+    int GameManager::get_card_value(const std::string& code) {
+        if (code.length() < 2) return 0;
+        // Last char is suit, rest is rank
+        std::string rank_str = code.substr(0, code.length() - 1);
+        
+        if (rank_str == "A") return 14;
+        if (rank_str == "K") return 13;
+        if (rank_str == "Q") return 12;
+        if (rank_str == "J") return 11;
+        try {
+            return std::stoi(rank_str);
+        } catch (...) {
+            return 0;
+        }
+    }
+
+    std::string GameManager::trim(const std::string& str) {
+        size_t first = str.find_first_not_of(" \t\r\n");
+        if (std::string::npos == first) return str;
+        size_t last = str.find_last_not_of(" \t\r\n");
+        return str.substr(first, (last - first + 1));
     }
 
 } // namespace game

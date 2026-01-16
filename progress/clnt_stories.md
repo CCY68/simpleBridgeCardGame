@@ -168,6 +168,18 @@
 
 ---
 
+## EPIC 9 - Advanced AI Strategy
+
+### S9.4 AI Card Strategy & Prompt Fix `[P1]` `DONE` `@Gemini`
+**依賴**: S5.4
+**檔案**: `clients/ai_cli/gemini_bridge.py`
+**DoD**:
+- [x] 修正 Prompt 產生時的 `KeyError: 'player'`
+- [x] 確保 `TablePlay` 結構 (player_id, card) 正確傳遞給 LLM
+- [x] 驗證 Human CLI 與 AI Client 處理 Table 訊息的一致性
+
+---
+
 ## Client Progress Summary
 
 | EPIC | Total | Done | In Progress | TODO |
@@ -176,7 +188,8 @@
 | EPIC 5 - Clients (Core) | 4 | 4 | 0 | 0 |
 | EPIC 7 - GUI Client | 4 | 4 | 0 | 0 |
 | EPIC 8 - C++ Client | 4 | 4 | 0 | 0 |
-| **Total** | **13** | **13** | **0** | **0** |
+| EPIC 9 - AI Strategy | 1 | 1 | 0 | 0 |
+| **Total** | **14** | **14** | **0** | **0** |
 
 ---
 

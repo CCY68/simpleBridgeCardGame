@@ -562,6 +562,21 @@
 
 ---
 
+## EPIC 9 - Advanced AI Strategy `@Gemini`
+
+### S9.4 AI Card Strategy & Prompt Engineering `[P1]` `DONE` `@Gemini`
+
+**依賴**: S5.4
+**檔案**: `clients/ai_cli/gemini_bridge.py`
+**驗收指令**: AI 能正確解析桌面狀態 (Table) 並生成合理出牌
+
+**DoD**:
+- [x] 修正 Table 資訊在 Prompt 中的欄位對應 (`player` -> `player_id`)
+- [x] 確保 Prompt 包含 Trick, Hand, Legal, Table, Score
+- [x] 驗證 Gemini API 能收到正確格式的 Context
+
+---
+
 ## Progress Summary (PM QA)
 
 > Client 端與 Server 端的開發細節請參考 `progress/clnt_stories.md` 與 `progress/srv_stories.md`。

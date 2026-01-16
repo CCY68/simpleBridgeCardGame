@@ -54,7 +54,7 @@ class GeminiBridge:
 
     def _build_prompt(self, hand, legal, table, trick, score_us, score_them) -> str:
         """Constructs the prompt for the LLM."""
-        table_desc = ", ".join([f"{c['player']}:{c['card']}" for c in table]) if table else "Empty"
+        table_desc = ", ".join([f"{c['player_id']}:{c['card']}" for c in table]) if table else "Empty"
         
         return f"""
 You are an expert Bridge/Whist player. Play a card to win the game.
