@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # CardArena Local Demo Script
-# 啟動 Server + 1 Human CLI + 3 AI Clients 進行完整遊戲
+# 啟動 Server + Human Client(s) (Server 內建 AI)
 #
 # Usage:
 #   ./run_local_demo.sh [OPTIONS]
@@ -128,8 +128,6 @@ if [ "$HUMANS" -lt 1 ] || [ "$HUMANS" -gt 4 ]; then
     exit 1
 fi
 
-AI_COUNT=$((4 - HUMANS))
-
 # 切換到專案根目錄
 cd "$(dirname "$0")/.."
 PROJECT_ROOT=$(pwd)
@@ -148,7 +146,6 @@ echo -e "${BLUE}   CardArena Local Demo${NC}"
 echo "=========================================="
 echo "Port:    $PORT"
 echo "Humans:  $HUMANS"
-echo "AIs:     $AI_COUNT"
 echo "Client:  $CLIENT_TYPE"
 [ -n "$SEED" ] && echo "Seed:    $SEED"
 echo "=========================================="
@@ -187,20 +184,7 @@ if ! kill -0 "$SERVER_PID" 2>/dev/null; then
 fi
 log_info "Server started (PID: $SERVER_PID)"
 
-# Step 3: Start AI Clients
-log_info "Starting $AI_COUNT AI client(s)..."
-for i in $(seq 1 $AI_COUNT); do
-    python3 "$PROJECT_ROOT/clients/ai_cli/app.py" \
-        --host 127.0.0.1 \
-        --port "$PORT" \
-        --name "Bot_$i" \
-        --token "secret" \
-        --no-llm &
-    CLIENT_PIDS+=($!)
-    sleep 0.3
-done
-
-# Step 4: Start Human Client(s)
+# Step 3: Start Human Client(s)
 if [ "$HUMANS" -gt 0 ]; then
     log_info "Starting Human $CLIENT_TYPE client..."
     echo ""

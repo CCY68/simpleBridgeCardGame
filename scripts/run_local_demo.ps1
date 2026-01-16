@@ -41,9 +41,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# 計算 AI 數量
-$AICount = 4 - $Humans
-
 if ($Humans -lt 1 -or $Humans -gt 4) {
     Write-Error "Humans must be between 1 and 4"
     exit 1
@@ -70,7 +67,6 @@ Write-Host "   CardArena Local Demo (Windows)" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Port:    $Port"
 Write-Host "Humans:  $Humans"
-Write-Host "AIs:     $AICount"
 Write-Host "Client:  $ClientType"
 if ($Seed) { Write-Host "Seed:    $Seed" }
 Write-Host "==========================================" -ForegroundColor Cyan
@@ -81,7 +77,7 @@ function Cleanup {
     Write-Host "[INFO] Cleaning up processes..." -ForegroundColor Green
     Get-Process -Name "card_arena_server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Get-Process -Name "python*" -ErrorAction SilentlyContinue | Where-Object {
-        $_.CommandLine -match "ai_cli|human_cli|human_gui"
+        $_.CommandLine -match "human_cli|human_gui"
     } | Stop-Process -Force -ErrorAction SilentlyContinue
     Get-Process -Name "client" -ErrorAction SilentlyContinue | Where-Object {
         $_.Path -match "cpp_cli"
@@ -129,23 +125,7 @@ try {
     }
     Write-Host "[INFO] Server started (PID: $($ServerProcess.Id))" -ForegroundColor Green
 
-    # Step 3: Start AI Clients
-    Write-Host "[INFO] Starting $AICount AI client(s)..." -ForegroundColor Green
-    $AIProcesses = @()
-    for ($i = 1; $i -le $AICount; $i++) {
-        $proc = Start-Process -FilePath "python" `
-            -ArgumentList "$ProjectRoot\clients\ai_cli\app.py", `
-                "--host", "127.0.0.1", `
-                "--port", $Port, `
-                "--name", "Bot_$i", `
-                "--token", "secret", `
-                "--no-llm" `
-            -PassThru -WindowStyle Hidden
-        $AIProcesses += $proc
-        Start-Sleep -Milliseconds 300
-    }
-
-    # Step 4: Start Human Client
+    # Step 3: Start Human Client
     if ($Humans -gt 0) {
         Write-Host "[INFO] Starting Human $ClientType client..." -ForegroundColor Green
         Write-Host ""

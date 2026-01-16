@@ -34,7 +34,6 @@ echo ""
 cleanup() {
     echo -e "${YELLOW}[CLEANUP]${NC} Stopping processes..."
     pkill -f "card_arena_server" 2>/dev/null || true
-    pkill -f "ai_cli/app.py" 2>/dev/null || true
     # Kill any cpp client processes
     pkill -f "cpp_cli/client" 2>/dev/null || true
     rm -f "$SERVER_LOG" "$CPP_OUTPUT" 2>/dev/null || true

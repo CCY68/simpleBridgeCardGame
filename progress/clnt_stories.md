@@ -62,33 +62,33 @@
 - [x] 顯示 TRICK_RESULT 和分數
 - [x] 顯示 GAME_OVER 結果
 
-### S5.3 AI CLI client - fallback mode `[P0]` `DONE` `@Gemini`
+### S5.3 AI CLI client - fallback mode `[P0]` `DEPRECATED` `@Gemini`
 
 **依賴**: S5.1
 **檔案**: `clients/ai_cli/main.py`, `clients/ai_cli/fallback.py`
-**驗收指令**: AI 能用 rule-based 完成一局
+**驗收指令**: (已移除)
 
 **DoD**:
-- [x] 連線並 handshake (role=AI, auth)
-- [x] 收到 YOUR_TURN 時自動選牌
-- [x] Fallback 策略：出最小合法牌
-- [x] 確保永遠不送非法牌
-- [x] 處理 PLAY_REJECT (換牌)
+- [x] (Code Removed) 連線並 handshake (role=AI, auth)
+- [x] (Code Removed) 收到 YOUR_TURN 時自動選牌
+- [x] (Code Removed) Fallback 策略：出最小合法牌
+- [x] (Code Removed) 確保永遠不送非法牌
+- [x] (Code Removed) 處理 PLAY_REJECT (換牌)
 
-### S5.4 AI CLI client - Gemini integration `[P1]` `DONE` `@Gemini`
+### S5.4 AI CLI client - Gemini integration `[P1]` `DEPRECATED` `@Gemini`
 
 **依賴**: S5.3
 **檔案**: `clients/ai_cli/gemini.py`
-**驗收指令**: AI 能用 Gemini API 決策
+**驗收指令**: (已移除)
 
 **DoD**:
-- [x] 安裝 `google-generativeai` SDK
-- [x] 組裝 prompt (當前牌局狀態)
-- [x] 呼叫 Gemini API
-- [x] 解析回應 (預期 JSON 格式)
-- [x] 驗證選牌是否合法
-- [x] API 失敗/timeout → fallback
-- [x] Rate limit 處理
+- [x] (Code Removed) 安裝 `google-generativeai` SDK
+- [x] (Code Removed) 組裝 prompt (當前牌局狀態)
+- [x] (Code Removed) 呼叫 Gemini API
+- [x] (Code Removed) 解析回應 (預期 JSON 格式)
+- [x] (Code Removed) 驗證選牌是否合法
+- [x] (Code Removed) API 失敗/timeout → fallback
+- [x] (Code Removed) Rate limit 處理
 
 ---
 
@@ -170,13 +170,13 @@
 
 ## EPIC 9 - Advanced AI Strategy
 
-### S9.4 AI Card Strategy & Prompt Fix `[P1]` `DONE` `@Gemini`
+### S9.4 AI Card Strategy & Prompt Fix `[P1]` `DEPRECATED` `@Gemini`
 **依賴**: S5.4
 **檔案**: `clients/ai_cli/gemini_bridge.py`
 **DoD**:
-- [x] 修正 Prompt 產生時的 `KeyError: 'player'`
-- [x] 確保 `TablePlay` 結構 (player_id, card) 正確傳遞給 LLM
-- [x] 驗證 Human CLI 與 AI Client 處理 Table 訊息的一致性
+- [x] (Code Removed) 修正 Prompt 產生時的 `KeyError: 'player'`
+- [x] (Code Removed) 確保 `TablePlay` 結構 (player_id, card) 正確傳遞給 LLM
+- [x] (Code Removed) 驗證 Human CLI 與 AI Client 處理 Table 訊息的一致性
 
 ---
 
