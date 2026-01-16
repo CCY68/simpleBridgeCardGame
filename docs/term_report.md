@@ -3,6 +3,11 @@
 ## Repository
 - GitHub: https://github.com/CCY68/simpleBridgeCardGame
 
+## NDJSON 通訊說明
+- 遊戲流程以 TCP NDJSON 交換訊息驅動
+- 每行一個 JSON 物件，`\n` 作為 frame boundary
+- Client/Server 皆使用 NDJSON codec 進行編解碼
+
 ## 範圍與重點
 - 範圍: Server (Rust) + Client (Python CLI, C++ CLI) 的 socket 程式碼
 - AI 玩家: 改由 Server side 執行，Client 僅負責連線與出牌
