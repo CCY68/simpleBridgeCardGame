@@ -23,6 +23,7 @@ CardArena 是一個在 **LAN 環境**中運作的回合制紙牌對戰網路應�
 | [protocol/posix_mapping.md](protocol/posix_mapping.md) | POSIX Socket API 對照表 |
 | [docs/user_manual.md](docs/user_manual.md) | 使用者操作手冊 |
 | [docs/integration_test_manual.md](docs/integration_test_manual.md) | 整合測試手冊 |
+| [docs/term_report.md](docs/term_report.md) | Socket 程式碼報告 |
 | [progress/stories.md](progress/stories.md) | 開發任務追蹤 |
 | [.claude/CLAUDE.md](.claude/CLAUDE.md) | Claude Code 開發指引 |
 | [GEMINI.md](GEMINI.md) | Gemini CLI 開發指引 |
