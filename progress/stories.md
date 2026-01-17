@@ -1,4 +1,4 @@
-# CardArena Development Stories
+# SimpleBridgeCardGame Development Stories
 
 > 本檔案以主 PM 的 QA 進度為主。
 > Server/Client 的開發進度請分別參考 `progress/srv_stories.md` 與 `progress/clnt_stories.md`。

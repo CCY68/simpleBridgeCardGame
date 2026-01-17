@@ -1,9 +1,9 @@
-# CardArena (LAN Socket Programming Final Project)
+# SimpleBridgeCardGame (LAN Socket Programming Final Project)
 
 > 期末作業目標：做出「可被解釋的網路應用程式」
 > 技術重點：可控制 TCP/UDP 連線建立與資料交換，並能在 CLI 清楚觀察通訊過程
 
-CardArena 是一個在 **LAN 環境**中運作的回合制紙牌對戰網路應用：
+SimpleBridgeCardGame 是一個在 **LAN 環境**中運作的回合制紙牌對戰網路應用：
 - **Host Node（Server）**：負責 lobby、配桌、發牌、回合、驗證出牌、計分（權威狀態機）
 - **Clients（Python / C++）**：
   - Human client (Python)：真人加入、輸入動作、顯示狀態

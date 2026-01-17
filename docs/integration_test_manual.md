@@ -1,4 +1,4 @@
-# CardArena 整合測試說明書
+# SimpleBridgeCardGame 整合測試說明書
 
 本文件整理整合測試執行方式，依 `protocol/integration_tests.md` 為驗收標準。
 
@@ -109,4 +109,3 @@ Expected:
 - 測試範圍
 - 是否通過
 - 異常紀錄與處置
-

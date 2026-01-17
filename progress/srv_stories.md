@@ -1,4 +1,4 @@
-# CardArena Server Development Stories
+# SimpleBridgeCardGame Server Development Stories
 
 > Server (Rust) 開發進度追蹤 - 由 Claude Code 維護
 >

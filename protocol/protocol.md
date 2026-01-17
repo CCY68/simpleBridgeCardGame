@@ -1,6 +1,6 @@
-# CardArena Protocol Specification v1
+# SimpleBridgeCardGame Protocol Specification v1
 
-> 本文件定義 CardArena 的完整通訊協議規格。
+> 本文件定義 SimpleBridgeCardGame 的完整通訊協議規格。
 
 ---
 

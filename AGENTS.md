@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-CardArena is a LAN-only card game with a Rust server and Python clients. The repository is currently scaffolded; implementation files are expected to land in the paths below (see `README.md` and `PROJECT.md`).
+SimpleBridgeCardGame is a LAN-only card game with a Rust server and Python clients. The repository is currently scaffolded; implementation files are expected to land in the paths below (see `README.md` and `PROJECT.md`).
 
 - `server/`: Rust host node (`server/src/` for code, `server/tests/` for tests, `Cargo.toml` at root).
 - `clients/`: Python clients (`clients/human_cli/`, `clients/ai_cli/`, `clients/common/`).

@@ -1,6 +1,6 @@
-# PROJECT - CardArena Architecture & Plan
+# PROJECT - SimpleBridgeCardGame Architecture & Plan
 
-> 本文件描述 CardArena 的系統架構、模組拆解、協議設計、開發計畫與里程碑。
+> 本文件描述 SimpleBridgeCardGame 的系統架構、模組拆解、協議設計、開發計畫與里程碑。
 >
 > **Related Documents**:
 > - [protocol/protocol.md](protocol/protocol.md) - 完整協議規格

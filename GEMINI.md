@@ -1,4 +1,4 @@
-# CardArena - Gemini CLI Development Guide
+# SimpleBridgeCardGame - Gemini CLI Development Guide
 
 > 本文件提供 Gemini CLI 在此專案中的工作指引。
 
@@ -48,7 +48,7 @@ clients/                ← 你負責這裡
 
 ## Project Overview
 
-CardArena 是一個 LAN 環境的回合制紙牌對戰遊戲。
+SimpleBridgeCardGame 是一個 LAN 環境的回合制紙牌對戰遊戲。
 
 - **Server**: Rust (`socket2` + `std::net` + `std::thread`)
 - **Clients**: Python (`socket` 直連)

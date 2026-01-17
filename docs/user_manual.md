@@ -1,6 +1,6 @@
-# CardArena 使用說明書
+# SimpleBridgeCardGame 使用說明書
 
-本文件提供一般使用者啟動與操作 CardArena 的步驟，適用於 LAN 環境。
+本文件提供一般使用者啟動與操作 SimpleBridgeCardGame 的步驟，適用於 LAN 環境。
 
 ---
 
@@ -106,4 +106,3 @@ A: 檢查 Server 是否設定 `AI_AUTH_TOKEN`，以及 client `--token` 是否�
 
 **Q: GUI 沒反應？**  
 A: 確認 Tkinter 有安裝，且 server 已啟動。
-

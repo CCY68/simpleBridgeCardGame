@@ -1,4 +1,4 @@
-# CardArena Socket Programming Report
+# SimpleBridgeCardGame Socket Programming Report
 
 ## Repository
 - GitHub: https://github.com/CCY68/simpleBridgeCardGame

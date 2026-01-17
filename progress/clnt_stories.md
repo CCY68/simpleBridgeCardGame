@@ -1,4 +1,4 @@
-# CardArena Client Development Stories
+# SimpleBridgeCardGame Client Development Stories
 
 > 本文件專門追蹤 Client 端 (Python) 的開發進度。
 > Server 端與整合進度請參閱 `stories.md`。
